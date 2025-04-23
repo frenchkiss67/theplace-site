@@ -1,1 +1,42 @@
 
+import React from "react";
+import { createClient } from '@supabase/supabase-js';
+import emailjs from '@emailjs/browser';
+
+const supabase = createClient(
+  "https://iccnnypgksrckyougufw.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_KEY
+);
+
+export default function HomePage() {
+  const handleSubmit = async () => {
+    try {
+      await emailjs.send("service_msvkaw5", "template_6jimt3k", {
+        nom: "Test",
+        email: "test@example.com",
+        telephone: "123456789",
+        genre: "Femme",
+        age: 28,
+        profession: "Ingénieure",
+        chambre: "Chambre 2",
+        message: "Test automatique"
+      }, "1pUvYhxBcUC3NbH2k");
+
+      alert("Email envoyé avec succès !");
+    } catch (err) {
+      console.error("Erreur d'envoi :", err);
+      alert("Échec de l'envoi de l'email.");
+    }
+  };
+
+  return (
+    <main style={{ padding: 50, fontFamily: "sans-serif" }}>
+      <h1>ThePlace – Envoi de test</h1>
+      <p>Clique ci-dessous pour tester l'envoi automatique d'un email via EmailJS.</p>
+      <button onClick={handleSubmit} style={{ marginTop: 20, padding: 10 }}>
+        Tester l'envoi Email
+      </button>
+    </main>
+  );
+}
+
