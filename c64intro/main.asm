@@ -1,7 +1,7 @@
 // ============================================================
 // THE PLACE - Intro Commodore 64
 // Assembleur: KickAssembler
-// Effets: Logo bitmap + Raster bars + Sinus scroll
+// Effets: Logo bitmap + Raster bars + PETSCII plasma + Sinus scroll
 // ============================================================
 
 // --- Configuration ---
@@ -56,6 +56,13 @@ text_ptr:       .word scroll_text
 sin_phase:      .byte 0        // Phase courante du sinus
 bar_offset:     .byte 0        // Offset animation raster bars
 temp_x:         .byte 0        // Variable temporaire
+petscii_phase1: .byte 0        // Phase onde 1 du plasma PETSCII
+petscii_phase2: .byte 0        // Phase onde 2 du plasma PETSCII
+color_cycle:    .byte 0        // Offset de color cycling
+petscii_row:    .byte 0        // Compteur ligne courante (temp)
+temp_row_val1:  .byte 0        // Offset ligne onde 1 (temp)
+temp_row_val2:  .byte 0        // Offset ligne onde 2 (temp)
+temp_sin1:      .byte 0        // Valeur sinus temporaire
 
 // Buffer des 40 caractères affichés à l'écran
 scroll_buffer:  .fill 41, $20  // 40 + 1 extra, initialisé avec espaces
@@ -87,6 +94,9 @@ start:
         // Initialiser le logo bitmap
         jsr setup_logo
 
+        // Initialiser l'animation PETSCII plasma
+        jsr init_petscii
+
         // Initialiser le sinus scroll
         jsr init_scroll
 
@@ -102,6 +112,9 @@ mainloop:
 
         lda #0
         sta frame_flag
+
+        // Mettre à jour le plasma PETSCII
+        jsr update_petscii
 
         // Mettre à jour le sinus scroll
         jsr update_scroll
@@ -147,5 +160,6 @@ clear_screen:
 #import "irq.asm"
 #import "logo.asm"
 #import "rasterbars.asm"
+#import "petscii.asm"
 #import "sinscroll.asm"
 #import "tables.asm"
