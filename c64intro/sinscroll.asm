@@ -177,3 +177,5 @@ scroll_text:
         .text "     DESIGN ET CODE PAR CLAUDE --- 2026 ---"
         .text "     SALUTATIONS A LA SCENE DEMO FRANCAISE... VIVE LE C64 !!!          "
         .byte 0
+
+.encoding "petscii_mixed"

@@ -9,9 +9,10 @@
 // ============================================================
 
 // --- Données sprite: balle ronde 16×16 pixels ---
-// Placées à $0340 (= bloc 13, pointer value = $0D)
-// La zone $0340-$037F est le cassette buffer, libre en demo
-.pc = $0340 "Sprite Ball Data"
+// Placées à $1040 (= bloc 65, pointer value = $41)
+// Après les variables à $1000, aligné sur 64 octets
+// (évite $0340 = cassette buffer, corrompu par LOAD)
+.pc = $1040 "Sprite Ball Data"
 
 sprite_ball:
     .byte %00000000, %00000000, %00000000   // ligne 0
@@ -38,7 +39,7 @@ sprite_ball:
     .byte $00                               // padding (64e octet)
 
 // Deuxième sprite: petite étoile/diamant
-.pc = $0380 "Sprite Star Data"
+.pc = $1080 "Sprite Star Data"
 
 sprite_star:
     .byte %00000000, %00000000, %00000000   // ligne 0
@@ -73,7 +74,7 @@ sprite_colors:
 
 // Sprite pointer values: alternance balle/étoile
 sprite_ptrs:
-    .byte $0d, $0e, $0d, $0e, $0d, $0e, $0d, $0e
+    .byte $41, $42, $41, $42, $41, $42, $41, $42
     //    ball star ball star ball star ball star
 
 // Tables sinus pour la trajectoire Lissajous

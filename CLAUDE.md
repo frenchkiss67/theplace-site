@@ -17,7 +17,7 @@ Intro-demo style Commodore 64 en assembleur 6510, inspirée de la scène demo (p
 
 | Adresse | Taille | Contenu |
 |---------|--------|---------|
-| `$0340–$03BF` | 128 o | Données sprites (balle + étoile, 64 octets chacun) |
+| `$1040–$10BF` | 128 o | Données sprites (balle + étoile, 64 octets chacun) |
 | `$0400–$07FF` | 1 Ko | Screen RAM (mode texte) |
 | `$07F8–$07FF` | 8 o | Pointeurs sprites (mode texte) |
 | `$0800–$0FFF` | 2 Ko | Charset copié depuis la ROM Character Generator |

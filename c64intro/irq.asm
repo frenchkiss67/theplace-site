@@ -100,8 +100,10 @@ irq_mid:
         sta VIC_D018
 
         // Configurer le smooth scroll horizontal pour le texte
+        // Masquer les bits 3-7 pour éviter d'activer le multicolor
+        // si scroll_x contient temporairement $FF (entre dec et reset)
         lda scroll_x
-        // Bit 3 = 0 pour 38 colonnes (cacher le bord droit du scroll)
+        and #$07                // Seuls les bits 0-2 (scroll), bit 3=0 (38 colonnes)
         sta VIC_D016
 
         // -----------------------------------------------
