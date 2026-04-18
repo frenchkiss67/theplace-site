@@ -233,7 +233,7 @@ clear_screen:
 #import "colorwash.asm"
 #import "sprites.asm"
 #import "rasterbars.asm"
-#import "petscii.asm"
+#import "shaderpetscii.asm"
 #import "sinscroll.asm"
 #import "tables.asm"
 #import "sid.asm"

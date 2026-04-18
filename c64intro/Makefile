@@ -13,7 +13,7 @@ OUT = intro.prg
 
 all: $(OUT)
 
-$(OUT): $(SRC) irq.asm logo.asm colorwash.asm sprites.asm rasterbars.asm petscii.asm sinscroll.asm tables.asm charset.asm sid.asm fld.asm
+$(OUT): $(SRC) irq.asm logo.asm colorwash.asm sprites.asm rasterbars.asm shaderpetscii.asm sinscroll.asm tables.asm charset.asm sid.asm fld.asm
 	$(KICK) $(SRC) -o $(OUT)
 
 run: $(OUT)
