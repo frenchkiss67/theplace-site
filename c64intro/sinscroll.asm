@@ -1,9 +1,8 @@
 // ============================================================
-// SINSCROLL.ASM - Sinus scroll horizontal avec vague verticale
+// SINSCROLL.ASM - Sinus scroll + color wash sur le texte
 // ============================================================
 
 // --- Tables d'adresses écran par ligne ---
-// Adresse basse et haute de chaque ligne écran (25 lignes)
 .pc = * "Row Address Tables"
 
 row_addr_lo:
@@ -16,13 +15,17 @@ color_addr_lo:
 color_addr_hi:
     .fill 25, >(COLOR_RAM + i * 40)
 
+// Palette arc-en-ciel pour le color wash du scroll text (16 couleurs)
+scroll_wash_palette:
+    .byte $01, $01, $03, $0d, $05, $07, $08, $02
+    .byte $0a, $02, $08, $07, $05, $0d, $03, $01
+
 // ============================================================
 // Initialisation du scroll
 // ============================================================
 .pc = * "Scroll Code"
 
 init_scroll:
-        // Remplir le buffer avec des espaces
         ldx #40
         lda #$20
 !loop:
@@ -30,13 +33,12 @@ init_scroll:
         sta scroll_buffer,x
         bne !loop-
 
-        // Initialiser le pointeur de texte
         lda #<scroll_text
         sta text_ptr
         lda #>scroll_text
         sta text_ptr + 1
 
-        // Mettre la couleur blanche dans la zone de scroll
+        // Couleurs initiales de la zone de scroll
         ldx #0
         lda #SCROLL_COLOR
 !color:
@@ -54,18 +56,15 @@ init_scroll:
         rts
 
 // ============================================================
-// Mise à jour du scroll (appelée chaque frame)
+// Mise à jour du scroll
 // ============================================================
 update_scroll:
-        // Décrémenter le compteur de smooth scroll
         dec scroll_x
         bpl no_char_advance
 
-        // Le compteur est passé sous 0 → remettre à 7
         lda #7
         sta scroll_x
 
-        // Décaler tout le buffer d'un caractère vers la gauche
         ldx #0
 !shift:
         lda scroll_buffer + 1,x
@@ -74,12 +73,10 @@ update_scroll:
         cpx #39
         bne !shift-
 
-        // Lire le prochain caractère du texte
         ldy #0
         lda (text_ptr),y
         bne !not_end-
 
-        // Fin du texte → revenir au début
         lda #<scroll_text
         sta text_ptr
         lda #>scroll_text
@@ -87,27 +84,24 @@ update_scroll:
         lda (text_ptr),y
 
 !not_end:
-        // Stocker le nouveau caractère à droite du buffer
         sta scroll_buffer + 39
 
-        // Avancer le pointeur de texte
         inc text_ptr
         bne !skip-
         inc text_ptr + 1
 !skip:
 
 no_char_advance:
-        // Placer les caractères sur l'écran avec l'effet sinus
         jsr place_scroll_chars
         rts
 
 // ============================================================
-// Placement des caractères avec ondulation sinusoïdale
+// Placement des caractères avec sinus + color wash
 // ============================================================
 place_scroll_chars:
-        // Effacer la zone de scroll (lignes SCROLL_BASE_ROW à +SCROLL_NUM_ROWS)
+        // Effacer la zone de scroll
         ldx #39
-        lda #$20        // Espace
+        lda #$20
 !clear:
         sta SCREEN_RAM + (SCROLL_BASE_ROW + 0) * 40,x
         sta SCREEN_RAM + (SCROLL_BASE_ROW + 1) * 40,x
@@ -119,42 +113,57 @@ place_scroll_chars:
         dex
         bpl !clear-
 
-        // Pour chaque colonne (0-39): placer le caractère à la bonne ligne
-        ldx #0          // X = colonne courante
+        // Placer chaque caractère avec sinus + couleur arc-en-ciel
+        ldx #0
 !place_loop:
         stx temp_x
 
-        // Calculer l'index dans la table sinus
-        // index = (colonne × SIN_SPACING + sin_phase) & $FF
+        // Index sinus = (colonne × 4 + sin_phase) & $FF
         txa
-        .for (var s = 0; s < 2; s++) {  // × 4 (SIN_SPACING=4)
-            asl
-        }
+        asl
+        asl
         clc
         adc sin_phase
-        tay             // Y = index dans sin_table
+        tay
 
-        // Lire le déplacement vertical (0 à SCROLL_NUM_ROWS-1)
+        // Déplacement vertical (0-6)
         lda sin_table,y
-
-        // Calculer la ligne écran = SCROLL_BASE_ROW + déplacement
         clc
         adc #SCROLL_BASE_ROW
 
-        // Charger l'adresse de cette ligne écran via la table de lookup
-        tax             // X = numéro de ligne
+        // Adresse de la ligne écran
+        tax
         lda row_addr_lo,x
         sta $fb
         lda row_addr_hi,x
         sta $fc
 
-        // Lire le caractère du buffer et le placer
-        ldx temp_x      // Restaurer le numéro de colonne
-        ldy temp_x      // Y = colonne pour l'adressage (zp),Y
+        // Adresse de la ligne Color RAM (pour le color wash)
+        lda color_addr_lo,x
+        sta $fd
+        lda color_addr_hi,x
+        sta $fe
+
+        // Placer le caractère
+        ldx temp_x
+        ldy temp_x
         lda scroll_buffer,x
         sta ($fb),y
 
+        // --- Color wash sur le texte ---
+        // Couleur = palette[(colonne + sin_phase) & $0F]
+        tya
+        clc
+        adc sin_phase
+        lsr
+        and #$0f
+        tax
+        lda scroll_wash_palette,x
+        ldy temp_x
+        sta ($fd),y
+
         // Colonne suivante
+        ldx temp_x
         inx
         cpx #40
         bne !place_loop-
@@ -162,7 +171,7 @@ place_scroll_chars:
         rts
 
 // ============================================================
-// Texte du scroll (encodé en screen codes C64 uppercase)
+// Texte du scroll (screen codes uppercase)
 // ============================================================
 .encoding "screencode_upper"
 
@@ -173,7 +182,7 @@ scroll_text:
         .text "     UNE INTRO COMMODORE 64 EN ASSEMBLEUR 6510..."
         .text "     GREETINGS A TOUS LES SCENERS DE POUET.NET ET TRANSMISSION 64 !!!"
         .text "     EFFETS: LOGO BITMAP + COLOR WASH + RASTER BARS + PETSCII PLASMA"
-        .text " + SPRITES LISSAJOUS + SINUS SCROLL..."
+        .text " + SPRITES LISSAJOUS + SINUS SCROLL + SID MUSIC + BORDER OPENING..."
         .text "     DESIGN ET CODE PAR CLAUDE --- 2026 ---"
         .text "     SALUTATIONS A LA SCENE DEMO FRANCAISE... VIVE LE C64 !!!          "
         .byte 0

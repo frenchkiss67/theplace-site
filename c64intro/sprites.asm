@@ -1,89 +1,90 @@
 // ============================================================
-// SPRITES.ASM - Sprites bouncing en courbe de Lissajous
-// Style Transmission 64 / scene demo C64
-//
-// 8 hardware sprites formant une chaîne de balles colorées
-// qui tracent une figure de Lissajous (fréquence 2:3).
-// Chaque sprite est décalé de 32 positions dans la phase,
-// créant un effet de "serpent" fluide.
+// SPRITES.ASM - 16 sprites via multiplexeur (2 × 8 hardware)
+// Set 1 (zone haute): Lissajous 2:3, Y = 65-135
+// Set 2 (zone basse): Lissajous 3:2, Y = 190-230
 // ============================================================
 
-// --- Données sprite: balle ronde 16×16 pixels ---
-// Placées à $1040 (= bloc 65, pointer value = $41)
-// Après les variables à $1000, aligné sur 64 octets
-// (évite $0340 = cassette buffer, corrompu par LOAD)
+// --- Données sprite: balle ronde ---
 .pc = $1040 "Sprite Ball Data"
 
 sprite_ball:
-    .byte %00000000, %00000000, %00000000   // ligne 0
-    .byte %00000000, %01111000, %00000000   // ligne 1
-    .byte %00000001, %11111110, %00000000   // ligne 2
-    .byte %00000011, %11111111, %00000000   // ligne 3
-    .byte %00000111, %11111111, %10000000   // ligne 4
-    .byte %00000111, %11111111, %10000000   // ligne 5
-    .byte %00001111, %11111111, %11000000   // ligne 6
-    .byte %00001111, %11111111, %11000000   // ligne 7
-    .byte %00001111, %11111111, %11000000   // ligne 8
-    .byte %00001111, %11111111, %11000000   // ligne 9
-    .byte %00001111, %11111111, %11000000   // ligne 10
-    .byte %00000111, %11111111, %10000000   // ligne 11
-    .byte %00000111, %11111111, %10000000   // ligne 12
-    .byte %00000011, %11111111, %00000000   // ligne 13
-    .byte %00000001, %11111110, %00000000   // ligne 14
-    .byte %00000000, %01111000, %00000000   // ligne 15
-    .byte %00000000, %00000000, %00000000   // ligne 16
-    .byte %00000000, %00000000, %00000000   // ligne 17
-    .byte %00000000, %00000000, %00000000   // ligne 18
-    .byte %00000000, %00000000, %00000000   // ligne 19
-    .byte %00000000, %00000000, %00000000   // ligne 20
-    .byte $00                               // padding (64e octet)
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %01111000, %00000000
+    .byte %00000001, %11111110, %00000000
+    .byte %00000011, %11111111, %00000000
+    .byte %00000111, %11111111, %10000000
+    .byte %00000111, %11111111, %10000000
+    .byte %00001111, %11111111, %11000000
+    .byte %00001111, %11111111, %11000000
+    .byte %00001111, %11111111, %11000000
+    .byte %00001111, %11111111, %11000000
+    .byte %00001111, %11111111, %11000000
+    .byte %00000111, %11111111, %10000000
+    .byte %00000111, %11111111, %10000000
+    .byte %00000011, %11111111, %00000000
+    .byte %00000001, %11111110, %00000000
+    .byte %00000000, %01111000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte $00
 
-// Deuxième sprite: petite étoile/diamant
+// --- Données sprite: étoile/diamant ---
 .pc = $1080 "Sprite Star Data"
 
 sprite_star:
-    .byte %00000000, %00000000, %00000000   // ligne 0
-    .byte %00000000, %01000000, %00000000   // ligne 1
-    .byte %00000000, %11100000, %00000000   // ligne 2
-    .byte %00000001, %11110000, %00000000   // ligne 3
-    .byte %00000011, %11111000, %00000000   // ligne 4
-    .byte %00000001, %11110000, %00000000   // ligne 5
-    .byte %00000000, %11100000, %00000000   // ligne 6
-    .byte %00000000, %01000000, %00000000   // ligne 7
-    .byte %00000000, %00000000, %00000000   // ligne 8
-    .byte %00000000, %00000000, %00000000   // ligne 9
-    .byte %00000000, %00000000, %00000000   // ligne 10
-    .byte %00000000, %00000000, %00000000   // ligne 11
-    .byte %00000000, %00000000, %00000000   // ligne 12
-    .byte %00000000, %00000000, %00000000   // ligne 13
-    .byte %00000000, %00000000, %00000000   // ligne 14
-    .byte %00000000, %00000000, %00000000   // ligne 15
-    .byte %00000000, %00000000, %00000000   // ligne 16
-    .byte %00000000, %00000000, %00000000   // ligne 17
-    .byte %00000000, %00000000, %00000000   // ligne 18
-    .byte %00000000, %00000000, %00000000   // ligne 19
-    .byte %00000000, %00000000, %00000000   // ligne 20
-    .byte $00                               // padding
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %01000000, %00000000
+    .byte %00000000, %11100000, %00000000
+    .byte %00000001, %11110000, %00000000
+    .byte %00000011, %11111000, %00000000
+    .byte %00000001, %11110000, %00000000
+    .byte %00000000, %11100000, %00000000
+    .byte %00000000, %01000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte %00000000, %00000000, %00000000
+    .byte $00
 
-// Couleurs des 8 sprites (palette arc-en-ciel)
+// --- Tables ---
 .pc = * "Sprite Tables"
 
-sprite_colors:
+sprite_colors_top:
     .byte $01, $03, $0d, $05, $07, $08, $02, $0a
-    //    wht  cyan ltgr  grn  yel  org  red  pink
 
-// Sprite pointer values: alternance balle/étoile
+sprite_colors_bottom:
+    .byte $0a, $02, $08, $07, $05, $0d, $03, $01
+
 sprite_ptrs:
     .byte $41, $42, $41, $42, $41, $42, $41, $42
-    //    ball star ball star ball star ball star
 
-// Tables sinus pour la trajectoire Lissajous
-// X: fréquence 2, centre=172, amplitude=80 (range 92-252)
-// Y: fréquence 3, centre=150, amplitude=70 (range 80-220)
+// Tables sinus partagées pour X (les 2 sets utilisent le même X)
 sprite_sin_x:
-    .fill 256, round(172 + 80 * sin(toRadians(i * 360 * 2 / 256)))
-sprite_sin_y:
-    .fill 256, round(150 + 70 * sin(toRadians(i * 360 * 3 / 256)))
+    .fill 256, round(172 + 70 * sin(toRadians(i * 360 * 2 / 256)))
+
+// Set 1 (zone haute): Y centré à 100, amplitude 35
+sprite_sin_y1:
+    .fill 256, round(100 + 35 * sin(toRadians(i * 360 * 3 / 256)))
+
+// Set 2 (zone basse): Y centré à 210, amplitude 20
+sprite_sin_y2:
+    .fill 256, round(210 + 20 * sin(toRadians(i * 360 * 2 / 256)))
+
+// Buffer positions set 2 (rempli par update_sprites, lu par irq_mux)
+sprite2_x: .fill 8, 0
+sprite2_y: .fill 8, 0
 
 // ============================================================
 // Initialisation des sprites
@@ -91,24 +92,20 @@ sprite_sin_y:
 .pc = * "Sprite Code"
 
 init_sprites:
-        // Activer les 8 sprites
         lda #$ff
-        sta $d015
+        sta $d015               // Activer les 8 sprites
 
-        // Sprites devant les caractères/bitmap
         lda #$00
-        sta $d01b           // Priority: in front
-        sta $d010           // Pas de MSB X (positions < 256)
-        sta $d01c           // Hi-res (pas multicolor)
+        sta $d01b               // Sprites devant
+        sta $d010               // Pas de MSB X
+        sta $d01c               // Hi-res
 
-        // Expansion: sprites pairs (0,2,4,6) = taille normale
-        //            sprites impairs (1,3,5,7) = expansés (étoiles plus grandes)
-        lda #$aa            // Bits 1,3,5,7 = sprites impairs
-        sta $d017           // Y expand
-        sta $d01d           // X expand
+        // Expansion sur les sprites impairs (étoiles)
+        lda #$aa
+        sta $d017               // Y expand
+        sta $d01d               // X expand
 
-        // Configurer les pointeurs sprite dans les deux screen RAM
-        // (text mode à $07F8, bitmap mode à $3FF8)
+        // Pointeurs sprite dans les deux screen RAM
         ldx #7
 !ptrs:
         lda sprite_ptrs,x
@@ -117,10 +114,10 @@ init_sprites:
         dex
         bpl !ptrs-
 
-        // Couleurs individuelles
+        // Couleurs initiales (set 1)
         ldx #7
 !colors:
-        lda sprite_colors,x
+        lda sprite_colors_top,x
         sta $d027,x
         dex
         bpl !colors-
@@ -128,38 +125,98 @@ init_sprites:
         rts
 
 // ============================================================
-// Mise à jour des positions des sprites (chaque frame)
-// 8 sprites tracent une courbe de Lissajous
+// Mise à jour des positions (16 sprites virtuels)
+// Set 1 → registres VIC directs
+// Set 2 → buffer sprite2_x/y (appliqué par irq_mux)
 // ============================================================
 update_sprites:
+        // --- Set 1 (zone haute) ---
         ldy sprite_phase
-        ldx #0              // Registre sprite (0,2,4,...14)
+        ldx #0
         lda #0
-        sta $d010           // Reset X MSB
+        sta $d010
 
-!loop:
-        // Position X du sprite
+!loop1:
         lda sprite_sin_x,y
         sta $d000,x
-
-        // Position Y du sprite
-        lda sprite_sin_y,y
+        lda sprite_sin_y1,y
         sta $d001,x
 
-        // Décalage phase pour le prochain sprite
-        // 256/8 = 32 → répartition uniforme sur la courbe
         tya
         clc
         adc #32
         tay
-
-        // Registre suivant (+2 car X/Y entrelacés)
         inx
         inx
         cpx #16
-        bne !loop-
+        bne !loop1-
 
-        // Avancer la phase d'animation
+        // --- Set 2 (zone basse) ---
+        lda mux_phase
+        tay
+        ldx #0
+
+!loop2:
+        lda sprite_sin_x,y
+        sta sprite2_x,x
+        lda sprite_sin_y2,y
+        sta sprite2_y,x
+
+        tya
+        clc
+        adc #32
+        tay
+        inx
+        cpx #8
+        bne !loop2-
+
+        // Avancer les phases
         inc sprite_phase
+        lda mux_phase
+        clc
+        adc #2              // Set 2 avance plus vite → mouvement différent
+        sta mux_phase
+
+        rts
+
+// ============================================================
+// Appliquer le set 1 (appelé par irq_top)
+// ============================================================
+set_sprites_top:
+        ldx #7
+!colors:
+        lda sprite_colors_top,x
+        sta $d027,x
+        dex
+        bpl !colors-
+        rts
+
+// ============================================================
+// Appliquer le set 2 (appelé par irq_mux)
+// ============================================================
+set_sprites_bottom:
+        // Repositionner les 8 sprites avec les données du set 2
+        ldx #0
+        ldy #0
+
+!repos:
+        lda sprite2_x,x
+        sta $d000,y
+        lda sprite2_y,x
+        sta $d001,y
+
+        iny
+        iny
+        inx
+        cpx #8
+        bne !repos-
+
+        // Changer les couleurs pour le set 2
+        ldx #7
+!colors:
+        lda sprite_colors_bottom,x
+        sta $d027,x
+        dex
+        bpl !colors-
 
         rts

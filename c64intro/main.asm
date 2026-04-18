@@ -1,8 +1,10 @@
 // ============================================================
 // BRAINWAVE - Intro Commodore 64
 // Assembleur: KickAssembler
-// Effets: Logo bitmap + Color wash + Raster bars + PETSCII plasma
-//         + Sprites Lissajous + Sinus scroll
+// 10 effets: Logo bitmap + Color wash + Tech-tech bars
+//            + PETSCII plasma + Sprites Lissajous (×16 mux)
+//            + Sinus scroll + Scroll color wash + SID music
+//            + Logo wobble + Border opening + Fade-in entrance
 // ============================================================
 
 // --- Configuration ---
@@ -16,7 +18,7 @@
 .const SCREEN_RAM      = $0400
 .const CHARSET_ADDR    = $0800
 .const BITMAP_ADDR     = $2000
-.const BITMAP_SCR      = $3c00  // Screen RAM pour mode bitmap
+.const BITMAP_SCR      = $3c00
 .const COLOR_RAM       = $d800
 
 // --- Registres VIC-II ---
@@ -32,13 +34,13 @@
 // --- Lignes raster pour les IRQ ---
 .const IRQ1_LINE       = $30    // Avant zone visible → mode bitmap
 .const IRQ2_LINE       = $82    // Après logo → mode texte + rasters
-.const IRQ3_LINE       = $f8    // Fin d'écran → frame sync
+.const IRQ3_LINE       = $f8    // Fin d'écran → border opening + SID
 
 // --- Constantes scroll ---
-.const SCROLL_BASE_ROW = 18     // Première ligne du sinus scroll
-.const SCROLL_NUM_ROWS = 7      // Amplitude max du sinus (en lignes texte)
-.const RASTER_BAR_LINES = 48    // Nombre de lignes de raster bars
-.const SIN_SPACING     = 4      // Espacement dans la table sinus entre colonnes
+.const SCROLL_BASE_ROW = 18
+.const SCROLL_NUM_ROWS = 7
+.const RASTER_BAR_LINES = 48
+.const SIN_SPACING     = 4
 
 // ============================================================
 // BASIC Upstart ($0801)
@@ -48,35 +50,48 @@ BasicUpstart2(start)
 
 // ============================================================
 // Variables ($1000)
-// IMPORTANT: ne pas placer entre $0800-$0FFF (zone charset)
 // ============================================================
 .pc = $1000 "Variables"
 
 frame_flag:     .byte 0
-scroll_x:      .byte 7         // Smooth scroll horizontal (7→0)
+scroll_x:      .byte 7
 text_ptr:       .word scroll_text
-sin_phase:      .byte 0        // Phase courante du sinus scroll
-bar_offset:     .byte 0        // Offset animation raster bars
-temp_x:         .byte 0        // Variable temporaire
+sin_phase:      .byte 0
+bar_offset:     .byte 0
+temp_x:         .byte 0
 
-// Variables PETSCII plasma
-petscii_phase1: .byte 0        // Phase onde 1 du plasma
-petscii_phase2: .byte 0        // Phase onde 2 du plasma
-color_cycle:    .byte 0        // Offset de color cycling
-petscii_row:    .byte 0        // Compteur ligne courante (temp)
-temp_row_val1:  .byte 0        // Offset ligne onde 1 (temp)
-temp_row_val2:  .byte 0        // Offset ligne onde 2 (temp)
-temp_sin1:      .byte 0        // Valeur sinus temporaire
+// PETSCII plasma
+petscii_phase1: .byte 0
+petscii_phase2: .byte 0
+color_cycle:    .byte 0
+petscii_row:    .byte 0
+temp_row_val1:  .byte 0
+temp_row_val2:  .byte 0
+temp_sin1:      .byte 0
 
-// Variables color wash
-wash_offset:    .byte 0        // Phase du color wash logo
-wash_row:       .byte 0        // Compteur rangée wash (temp)
+// Color wash logo
+wash_offset:    .byte 0
+wash_row:       .byte 0
 
-// Variables sprites
-sprite_phase:   .byte 0        // Phase animation Lissajous
+// Sprites
+sprite_phase:   .byte 0
+mux_phase:      .byte 0
 
-// Buffer des 40 caractères affichés à l'écran
-scroll_buffer:  .fill 41, $20  // 40 + 1 extra, initialisé avec espaces
+// SID music
+sid_counter:    .byte 1
+sid_pos:        .byte 0
+
+// Logo wobble
+logo_wobble:    .byte 0
+
+// FLD entrance
+fld_step:       .byte 0
+
+// Scroll buffer
+scroll_buffer:  .fill 41, $20
+
+// Tech-tech bars: buffer fusionné (lu par l'IRQ raster)
+merged_bars:    .fill RASTER_BAR_LINES, 0
 
 // ============================================================
 // Code principal ($C000)
@@ -86,40 +101,38 @@ scroll_buffer:  .fill 41, $20  // 40 + 1 extra, initialisé avec espaces
 start:
         sei
 
-        // Désactiver le BASIC et le Kernal ROM
         lda #$35
         sta $01
 
-        // Couleurs de base
         lda #BORDER_COLOR
         sta VIC_BORDER
         lda #BG_COLOR
         sta VIC_BG
 
-        // Copier le charset ROM → RAM à $0800
         jsr copy_charset
-
-        // Effacer l'écran texte
         jsr clear_screen
-
-        // Initialiser le logo bitmap
         jsr setup_logo
-
-        // Initialiser l'animation PETSCII plasma
         jsr init_petscii
-
-        // Initialiser les sprites bouncing
         jsr init_sprites
-
-        // Initialiser le sinus scroll
         jsr init_scroll
+        jsr init_sid
 
-        // Configurer la chaîne d'interruptions raster
+        // Activer le mode bitmap pour le fade-in
+        lda #$3b
+        sta VIC_D011
+        lda #$f8
+        sta VIC_D018
+        lda #$08
+        sta VIC_D016
+
+        // Animation d'entrée: fade-in du logo
+        jsr fld_entrance
+
+        // Lancer la chaîne IRQ
         jsr setup_irq
-
         cli
 
-// --- Boucle principale (synchronisée par IRQ) ---
+// --- Boucle principale ---
 mainloop:
         lda frame_flag
         beq mainloop
@@ -130,19 +143,21 @@ mainloop:
         // Color wash arc-en-ciel sur le logo
         jsr update_colorwash
 
-        // Mettre à jour le plasma PETSCII
+        // Plasma PETSCII
         jsr update_petscii
 
-        // Mettre à jour les sprites bouncing (Lissajous)
+        // Positions des 16 sprites (2 sets via multiplexeur)
         jsr update_sprites
 
-        // Mettre à jour le sinus scroll
+        // Sinus scroll + color wash texte
         jsr update_scroll
 
-        // Animer les raster bars (décalage de la table de couleurs)
+        // Fusionner les barres tech-tech (2 offsets croisés)
+        jsr merge_techtech
+
+        // Animer les phases
         inc bar_offset
 
-        // Animer la phase du sinus scroll (vitesse = 2 par frame)
         lda sin_phase
         clc
         adc #2
@@ -150,10 +165,47 @@ mainloop:
 
         jmp mainloop
 
-// --- Effacer l'écran texte ($0400) et la color RAM ---
+// ============================================================
+// Fusionner 2 jeux de raster bars (tech-tech croisé)
+// Set 1 monte (bar_offset), Set 2 descend (255-bar_offset)
+// ============================================================
+merge_techtech:
+        lda bar_offset
+        eor #$ff
+        sta tt_off2
+
+        ldx #0
+        ldy bar_offset
+
+!merge:
+        // Couleur du set 1 (montant)
+        lda bar_colors,y
+        bne !use1-
+
+        // Si set 1 est noir, prendre le set 2 (descendant)
+        sty tt_save_y
+        ldy tt_off2
+        lda bar_colors,y
+        ldy tt_save_y
+
+!use1:
+        sta merged_bars,x
+
+        iny
+        inc tt_off2
+        inx
+        cpx #RASTER_BAR_LINES
+        bne !merge-
+
+        rts
+
+tt_off2:    .byte 0
+tt_save_y:  .byte 0
+
+// --- Effacer l'écran ---
 clear_screen:
         ldx #0
-        lda #$20        // Espace (screen code)
+        lda #$20
 !loop:
         sta SCREEN_RAM,x
         sta SCREEN_RAM + $100,x
@@ -162,7 +214,6 @@ clear_screen:
         inx
         bne !loop-
 
-        // Color RAM à noir
         lda #$00
 !color:
         sta COLOR_RAM,x
@@ -185,3 +236,5 @@ clear_screen:
 #import "petscii.asm"
 #import "sinscroll.asm"
 #import "tables.asm"
+#import "sid.asm"
+#import "fld.asm"
