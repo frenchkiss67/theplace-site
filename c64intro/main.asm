@@ -1,7 +1,8 @@
 // ============================================================
-// THE PLACE - Intro Commodore 64
+// BRAINWAVE - Intro Commodore 64
 // Assembleur: KickAssembler
-// Effets: Logo bitmap + Raster bars + PETSCII plasma + Sinus scroll
+// Effets: Logo bitmap + Color wash + Raster bars + PETSCII plasma
+//         + Sprites Lissajous + Sinus scroll
 // ============================================================
 
 // --- Configuration ---
@@ -46,23 +47,33 @@
 BasicUpstart2(start)
 
 // ============================================================
-// Variables ($0810)
+// Variables ($1000)
+// IMPORTANT: ne pas placer entre $0800-$0FFF (zone charset)
 // ============================================================
-.pc = $0810 "Variables"
+.pc = $1000 "Variables"
 
 frame_flag:     .byte 0
 scroll_x:      .byte 7         // Smooth scroll horizontal (7→0)
 text_ptr:       .word scroll_text
-sin_phase:      .byte 0        // Phase courante du sinus
+sin_phase:      .byte 0        // Phase courante du sinus scroll
 bar_offset:     .byte 0        // Offset animation raster bars
 temp_x:         .byte 0        // Variable temporaire
-petscii_phase1: .byte 0        // Phase onde 1 du plasma PETSCII
-petscii_phase2: .byte 0        // Phase onde 2 du plasma PETSCII
+
+// Variables PETSCII plasma
+petscii_phase1: .byte 0        // Phase onde 1 du plasma
+petscii_phase2: .byte 0        // Phase onde 2 du plasma
 color_cycle:    .byte 0        // Offset de color cycling
 petscii_row:    .byte 0        // Compteur ligne courante (temp)
 temp_row_val1:  .byte 0        // Offset ligne onde 1 (temp)
 temp_row_val2:  .byte 0        // Offset ligne onde 2 (temp)
 temp_sin1:      .byte 0        // Valeur sinus temporaire
+
+// Variables color wash
+wash_offset:    .byte 0        // Phase du color wash logo
+wash_row:       .byte 0        // Compteur rangée wash (temp)
+
+// Variables sprites
+sprite_phase:   .byte 0        // Phase animation Lissajous
 
 // Buffer des 40 caractères affichés à l'écran
 scroll_buffer:  .fill 41, $20  // 40 + 1 extra, initialisé avec espaces
@@ -97,6 +108,9 @@ start:
         // Initialiser l'animation PETSCII plasma
         jsr init_petscii
 
+        // Initialiser les sprites bouncing
+        jsr init_sprites
+
         // Initialiser le sinus scroll
         jsr init_scroll
 
@@ -113,8 +127,14 @@ mainloop:
         lda #0
         sta frame_flag
 
+        // Color wash arc-en-ciel sur le logo
+        jsr update_colorwash
+
         // Mettre à jour le plasma PETSCII
         jsr update_petscii
+
+        // Mettre à jour les sprites bouncing (Lissajous)
+        jsr update_sprites
 
         // Mettre à jour le sinus scroll
         jsr update_scroll
@@ -122,7 +142,7 @@ mainloop:
         // Animer les raster bars (décalage de la table de couleurs)
         inc bar_offset
 
-        // Animer la phase du sinus (vitesse = 2 par frame)
+        // Animer la phase du sinus scroll (vitesse = 2 par frame)
         lda sin_phase
         clc
         adc #2
@@ -159,6 +179,8 @@ clear_screen:
 #import "charset.asm"
 #import "irq.asm"
 #import "logo.asm"
+#import "colorwash.asm"
+#import "sprites.asm"
 #import "rasterbars.asm"
 #import "petscii.asm"
 #import "sinscroll.asm"

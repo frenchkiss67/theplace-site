@@ -1,11 +1,10 @@
 // ============================================================
-// LOGO.ASM - Logo bitmap "THE PLACE"
+// LOGO.ASM - Logo bitmap "BRAINWAVE"
 // ============================================================
 
 // --- Initialisation du logo ---
 setup_logo:
-        // Remplir le screen RAM bitmap ($3C00) avec les couleurs
-        // Couleur par défaut: noir sur noir
+        // Remplir le screen RAM bitmap ($3C00) avec noir sur noir
         ldx #0
         lda #$00
 !clr:
@@ -14,7 +13,6 @@ setup_logo:
         inx
         bne !clr-
 
-        // Lignes 0-$E7 restantes
         ldx #0
 !clr2:
         sta BITMAP_SCR + $200,x
@@ -22,13 +20,14 @@ setup_logo:
         cpx #$e8
         bne !clr2-
 
-        // Couleurs pour la zone du logo (lignes char 2-6 = offsets 80-279)
+        // Couleurs initiales du logo (lignes char 2-6 = offsets 80-279)
+        // Le color wash les remplacera ensuite chaque frame
         ldx #0
         lda #(LOGO_FG_COLOR * 16 + LOGO_BG_COLOR)
 !logo_color:
         sta BITMAP_SCR + 80,x
         inx
-        cpx #200        // 5 rangées × 40 colonnes
+        cpx #200
         bne !logo_color-
 
         rts
@@ -37,21 +36,25 @@ setup_logo:
 // Données bitmap du logo à $2000 (8000 octets)
 // ============================================================
 
-// Motif du logo "THE PLACE" en cellules 8×8
-// '#' = cellule pleine ($FF), '.' = cellule vide ($00)
-// Grille: 40 colonnes × 25 lignes, logo sur lignes 2-6
+// Motif du logo "BRAINWAVE" en cellules 8×8
+// Chaque lettre: 3 colonnes de large, 5 lignes de haut
+// Espacement: 1 colonne vide entre chaque lettre
+// Centré: début colonne 3 (largeur totale = 35 colonnes)
 //
-// Ligne 0:  ....###.#.#.###...##..#..###.###.###....
-// Ligne 1:  .....#..#.#.#.....#.#.#..#.#.#....#.....
-// Ligne 2:  .....#..###.##....##..#..###.#....##....
-// Ligne 3:  .....#..#.#.#.....#...#..#.#.#....#.....
-// Ligne 4:  .....#..#.#.###...#...###.#.#.###.###...
+// B: ##.  R: ##.  A: .#.  I: ###  N: #.#  W: #.#  A: .#.  V: #.#  E: ###
+//    #.#     #.#     #.#     .#.     ###     #.#     #.#     #.#     #..
+//    ##.     ##.     ###     .#.     ###     ###     ###     #.#     ##.
+//    #.#     #..     #.#     .#.     #.#     ###     #.#     .#.     #..
+//    ##.     #..     #.#     ###     #.#     .#.     #.#     .#.     ###
+//
+//         col: 0         1         2         3
+//              0123456789012345678901234567890123456789
 
-.var logo_line0 = "....###.#.#.###...##..#..###.###.###...."
-.var logo_line1 = ".....#..#.#.#.....#.#.#..#.#.#....#....."
-.var logo_line2 = ".....#..###.##....##..#..###.#....##....."
-.var logo_line3 = ".....#..#.#.#.....#...#..#.#.#....#....."
-.var logo_line4 = ".....#..#.#.###...#...###.#.#.###.###..."
+.var logo_line0 = "...##..##...#..###.#.#.#.#..#..#.#.###.."
+.var logo_line1 = "...#.#.#.#.#.#..#..###.#.#.#.#.#.#.#...."
+.var logo_line2 = "...##..##..###..#..###.###.###.#.#.##..."
+.var logo_line3 = "...#.#.#...#.#..#..#.#.###.#.#..#..#...."
+.var logo_line4 = "...##..#...#.#.###.#.#..#..#.#..#..###.."
 
 // Fonction: obtenir si une cellule du logo est remplie
 .function isLogoCell(charRow, charCol) {

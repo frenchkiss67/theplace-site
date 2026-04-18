@@ -169,10 +169,11 @@ place_scroll_chars:
 .pc = * "Scroll Text"
 
 scroll_text:
-        .text "     BIENVENUE DANS THE PLACE !!!"
+        .text "     BIENVENUE DANS BRAINWAVE !!!"
         .text "     UNE INTRO COMMODORE 64 EN ASSEMBLEUR 6510..."
-        .text "     GREETINGS A TOUS LES SCENERS !!!"
+        .text "     GREETINGS A TOUS LES SCENERS DE POUET.NET ET TRANSMISSION 64 !!!"
+        .text "     EFFETS: LOGO BITMAP + COLOR WASH + RASTER BARS + PETSCII PLASMA"
+        .text " + SPRITES LISSAJOUS + SINUS SCROLL..."
         .text "     DESIGN ET CODE PAR CLAUDE --- 2026 ---"
-        .text "     SALUTATIONS A LA SCENE DEMO FRANCAISE..."
-        .text "     VIVE LE C64 !!!          "
+        .text "     SALUTATIONS A LA SCENE DEMO FRANCAISE... VIVE LE C64 !!!          "
         .byte 0
