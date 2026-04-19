@@ -259,6 +259,57 @@ make run   # lance x64sc -warp zoomscroll.prg
 java -jar KickAss.jar main.asm -o zoomscroll.prg
 ```
 
+## Debug & test
+
+### Bugs fixés lors de la revue
+
+| # | Fichier | Bug | Fix |
+|---|---------|-----|-----|
+| 1 | `scroller.asm` | `RASTER_SCROLLER_TOP = $80 + 8*ROW` → ligne raster $E0 (au-delà de la zone visible) | Corrigé en `$33 + 8*ROW` = $93 pour row 12 (aligné sur le début visible PAL) |
+| 2 | `scroller.asm` | `lda $d011 / and #$7f / ora #$10` fragile (dépend de l'état initial) | Remplacé par `lda #$1b / sta $d011` explicite (mode texte standard) |
+
+### Test d'assemblage
+
+Un port ACME (`test_acme.asm`) permet de valider le code 6510 sur un
+environnement sans KickAssembler :
+
+```bash
+acme -f cbm -o test.prg test_acme.asm
+```
+
+Validation effectuée :
+- ✅ Opcodes 6510 légaux
+- ✅ Toutes les références de labels résolues
+- ✅ Arithmétique compile-time correcte (adresses, constantes)
+- ✅ Memory layout cohérent (voir ci-dessous)
+
+### Memory map validée (via `acme --labeldump`)
+
+| Label | Adresse | Rôle |
+|-------|---------|------|
+| `main` | `$0810` | Entrée (pointée par SYS 2064) |
+| `scroller_init` | `$0846` | Init du module |
+| `scroller_irq` | `$08a4` | IRQ bande zoom |
+| `scroller_irq_frame` | `$08dd` | IRQ fin de frame (update) |
+| `scroller_update` | `$0905` | Logique scroll 1×/frame |
+| `shift_screen_left` | `$0927` | Décalage screen RAM |
+| `fetch_next_char` | `$0935` | Injection char suivant |
+| `yscroll_x4` | `$0a00` | Table zoom (aligné page) |
+| `sin_zoom` | `$0a20` | Table sinus 256 valeurs |
+| `scroll_text` | `$0b20` | Données message |
+| `RASTER_SCROLLER_TOP` | `$93` | Ligne raster IRQ top |
+| `SCROLLER_SCREEN_ADDR` | `$05e0` | Row 12 × 40 + $0400 |
+| `SCROLLER_COLOR_ADDR` | `$d9e0` | Row 12 × 40 + $D800 |
+
+PRG produit : 840 octets.
+
+### Runtime test
+
+VICE est installé dans l'environnement dev mais ne peut tourner sans
+Kernal ROM (licence). Pour test runtime :
+- Sur hardware réel, copier `zoomscroll.prg` via SD2IEC / Ultimate II+.
+- Sous VICE avec ROMs : `x64sc -warp zoomscroll.prg`.
+
 ## Memory map effective
 
 | Plage | Usage |

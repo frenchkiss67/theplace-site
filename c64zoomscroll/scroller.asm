@@ -26,7 +26,9 @@
 // -----------------------------
 .const SCROLLER_ROW        = 12                    // ligne texte du scroller
 .const SCROLLER_SCREEN_ADDR = $0400 + 40 * SCROLLER_ROW
-.const RASTER_SCROLLER_TOP = $80 + 8 * SCROLLER_ROW // ~ligne raster début
+// Ligne raster PAL de la 1re ligne pixel du scroller :
+//   row 0 commence à la ligne raster 51 ($33), chaque row = 8 lignes.
+.const RASTER_SCROLLER_TOP = $33 + 8 * SCROLLER_ROW // = $93 pour row 12
 .const RASTER_SCROLLER_END = RASTER_SCROLLER_TOP + 40
 .const RASTER_FRAME_START  = $f8                   // fin de visible area
 .const SCROLL_SPEED        = 2                      // pixels/frame
@@ -96,10 +98,8 @@ scroller_init:
     // --- Armer raster IRQ à la ligne du top de la bande scroller ---
     lda #RASTER_SCROLLER_TOP
     sta VIC_RASTER
-    lda VIC_SCROLY
-    and #$7f                // clear bit 8 de raster
-    ora #$10                // écran ON
-    sta VIC_SCROLY
+    lda #$1b                // bit 7 raster=0, ECM=0, bitmap=0, screen ON,
+    sta VIC_SCROLY          // 25 lignes, YSCROLL=3 (mode texte standard)
 
     lda #$01                // activer raster IRQ
     sta VIC_IRQMASK
