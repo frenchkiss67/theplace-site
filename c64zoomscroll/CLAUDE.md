@@ -212,6 +212,64 @@ Le dossier `c64zoomscroll/` contient maintenant :
 | `font_cyber.asm` | Police 8×8 futuriste "Cyber Outline" (courbes + angles biseautés) |
 | `font_neon.asm` | Police 8×8 futuriste "Neon Digital" (style LED 7-segments) |
 | `fonts_preview.txt` | Aperçu ASCII-art des glyphes + mode d'emploi |
+| `main.asm` | Point d'entrée standalone (stub BASIC + init + loop) |
+| `scroller.asm` | **Module principal réutilisable** — API publique pour la démo |
+| `text.asm` | Message du scrolltext en codes écran |
+| `build.sh` | Script de compilation KickAssembler |
+| `Makefile` | Targets `all`, `run`, `clean` |
+
+## API du module `scroller.asm`
+
+Le module expose trois symboles à appeler depuis une démo externe :
+
+| Symbole | Rôle |
+|---------|------|
+| `scroller_init` | À appeler une fois à l'init. Configure VIC, charset, color RAM, installe les vecteurs IRQ. |
+| `scroller_update` | Logique de scroll (1× par frame). Peut être appelée depuis la main loop d'une démo si les IRQs sont gérées ailleurs. |
+| `scroller_irq` / `scroller_irq_frame` | Handlers d'interruption raster — la chaîne interne les enchaîne automatiquement. |
+
+Configuration modifiable en tête de `scroller.asm` :
+- `SCROLLER_ROW` (défaut : 12) — ligne texte du scroller
+- `SCROLL_SPEED` (défaut : 2) — pixels/frame
+- `RASTER_SCROLLER_TOP` — ligne raster du début de bande zoom
+
+## Intégration dans une démo plus large
+
+```asm
+// Dans le main de la démo :
+jsr demo_init_visuals
+jsr scroller_init        // active la bande zoom + IRQs
+
+// Si la démo a déjà sa propre chaîne IRQ, ne PAS appeler
+// scroller_init : inclure directement scroller_irq dans la
+// chaîne raster existante à la ligne RASTER_SCROLLER_TOP.
+```
+
+## Build
+
+```bash
+# Avec make (recommandé)
+make KICKASS_JAR=/chemin/KickAss.jar
+make run   # lance x64sc -warp zoomscroll.prg
+
+# Avec le script
+./build.sh
+
+# Manuellement
+java -jar KickAss.jar main.asm -o zoomscroll.prg
+```
+
+## Memory map effective
+
+| Plage | Usage |
+|-------|-------|
+| `$0801` | Stub BASIC `10 SYS 2064` |
+| `$0810` | Code `main` + module scroller |
+| `$02..$07` | Variables zéro-page (XSCROLL, text_ptr, sin_idx, frame) |
+| `$0400` | Screen RAM |
+| `$0400 + 12*40` | Ligne du scrolltext (row 12) |
+| `$D800` | Color RAM |
+| `$2000` | Charset 2 Ko (`font_cyber` par défaut) |
 
 ## Polices de caractères futuristes
 
