@@ -209,6 +209,43 @@ Le dossier `c64zoomscroll/` contient maintenant :
 | `references.md` | Liens vérifiés vers code sources & tutoriels C64 |
 | `tables.asm` | Constantes VIC-II + tables sinus + tables YSCROLL (zoom x2/x4/x8) + palettes raster bars |
 | `irq_stable.asm` | Squelette de la chaîne double-IRQ stable (cycle-exact) |
+| `font_cyber.asm` | Police 8×8 futuriste "Cyber Outline" (courbes + angles biseautés) |
+| `font_neon.asm` | Police 8×8 futuriste "Neon Digital" (style LED 7-segments) |
+| `fonts_preview.txt` | Aperçu ASCII-art des glyphes + mode d'emploi |
+
+## Polices de caractères futuristes
+
+Deux charsets 8×8 livrés avec le projet, tous deux au format standard
+C64 (256 glyphes × 8 octets = 2 Ko) prêts à charger en mémoire VIC :
+
+### `font_cyber` — style outline / cyberpunk
+Lettres creuses avec contour angulaire, coins biseautés, épaisseur
+de trait double pixel pour rester lisible sous stretch vertical.
+Adapté aux scrolls lents et aux zoom modérés (x1..x4).
+
+### `font_neon` — style LED digital / 7-segments
+Glyphes rectangulaires inspirés des afficheurs LED, segments droits,
+idéal pour les zoom forts (x4..x8) et les scrolls rapides où la
+lisibilité prime.
+
+### Chargement
+
+```asm
+*= $2000
+.import source "font_cyber.asm"   // ou font_neon.asm
+
+// dans l'init :
+lda #$18        // screen RAM=$0400, charset=$2000
+sta $d018
+```
+
+### Codes écran utilisés
+- `$01..$1A` → A..Z
+- `$20` → espace
+- `$21` → `!`, `$2C` → `,`, `$2D` → `-`, `$2E` → `.`, `$2F` → `/`
+- `$30..$39` → 0..9, `$3A` → `:`, `$3F` → `?`
+
+Exemple de message : `.byte $08,$05,$0c,$0c,$0f,$20,$17,$0f,$12,$0c,$04` = "HELLO WORLD".
 
 Les tables (`sin_zoom`, `sin_factor`, `yscroll_x2/x4/x8`) et le squelette double-IRQ
 sont directement issus des techniques documentées sur Codebase64
