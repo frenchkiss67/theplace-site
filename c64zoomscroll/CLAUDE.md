@@ -198,3 +198,32 @@ x64sc -warp zoomscroll.prg
 - VIC-II reference : Christian Bauer's *The MOS 6567/6569 Video Controller*
 - Codebase 64 (codebase64.org) : articles "YSCROLL trick", "Stable raster", "Big scroller"
 - Tables sinus : `sin(i * 2π / 256) * amplitude + offset`, précalculer en Python/KickAssembler
+
+## Fichiers annexes du projet
+
+Le dossier `c64zoomscroll/` contient maintenant :
+
+| Fichier | Contenu |
+|---------|---------|
+| `CLAUDE.md` | Ce document (architecture, conventions) |
+| `references.md` | Liens vérifiés vers code sources & tutoriels C64 |
+| `tables.asm` | Constantes VIC-II + tables sinus + tables YSCROLL (zoom x2/x4/x8) + palettes raster bars |
+| `irq_stable.asm` | Squelette de la chaîne double-IRQ stable (cycle-exact) |
+
+Les tables (`sin_zoom`, `sin_factor`, `yscroll_x2/x4/x8`) et le squelette double-IRQ
+sont directement issus des techniques documentées sur Codebase64
+(`the_double_irq_method`, `fpd`) et sur les papiers Pasi Ojala / Raistlin.
+
+## Sources code C64 référencées
+
+Liste complète dans `references.md`. Principales :
+
+- **[Codebase64](https://codebase.c64.org/)** — wiki de référence scène C64
+- **[Codebase64 — Double IRQ method](https://codebase.c64.org/doku.php?id=base:the_double_irq_method)** — base de `irq_stable.asm`
+- **[Codebase64 — FPD (Flexible Pixel Distance)](https://codebase.c64.org/doku.php?id=base:fpd)** — base du zoom YSCROLL
+- **[0xc64 — flexlinedistance.asm](https://github.com/0xc64/c64/blob/master/raster/flexlinedistance.asm)** — implémentation FLD complète
+- **[Raistlin Papers — DXYCP Scrollers](https://c64demo.com/dxycp-scrollers/)** — scrollers à caractères déformés
+- **[Slarti64 — 1x2 Font Scroller](https://github.com/Slarti64/C64-Code-Hacking/wiki/1x2-Font-Scroller-with-Music)** — exemple minimal de scroller stretched
+- **[Antimon — DYCP (Pasi Ojala)](http://www.antimon.org/dl/c64/code/dycp.txt)** — le classique DYCP
+- **[Bumbershoot — Stabilizing the VIC-II Raster](https://bumbershootsoft.wordpress.com/2015/12/29/stabilizing-the-vic-ii-raster/)** — explications cycles
+- **[nurpax — BINTRIS part 5 : Bad lines & FLD](https://nurpax.github.io/posts/2018-06-19-bintris-on-c64-part-5.html)** — mise en pratique moderne
