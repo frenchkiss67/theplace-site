@@ -10,11 +10,16 @@ SRC = main.asm
 OUT = intro.prg
 
 # --- Générateur de sprites ---
-# Surcharger via : make sprites SPRITE_INPUT=anim.gif SPRITE_OUT=data/anim.asm
-SPRITE_TOOL   = python3 tools/gif2sprite.py
-SPRITE_INPUT ?=
-SPRITE_OUT   ?= data/sprites.asm
-SPRITE_OPTS  ?= --mode multicolor --label sprite_data
+# Surcharger via : make sprites SPRITE_INPUT=anim.gif SPRITE_LABEL=ball SPRITE_ADDRESS=\$$3000
+SPRITE_TOOL    = python3 tools/gif2sprite.py
+SPRITE_INPUT  ?=
+SPRITE_LABEL  ?= sprite_data
+SPRITE_OUT    ?= data/$(SPRITE_LABEL).asm
+SPRITE_ADDRESS?= $$3000
+SPRITE_SCREEN ?= $$0400
+SPRITE_MODE   ?= multicolor
+SPRITE_OPTS   ?= --mode $(SPRITE_MODE) --label $(SPRITE_LABEL) \
+                 --address '$(SPRITE_ADDRESS)' --screen-base '$(SPRITE_SCREEN)'
 
 .PHONY: all clean run sprites
 

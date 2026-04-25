@@ -256,29 +256,59 @@ C64_COLOR_NAMES = [
 
 
 def emit_kickass(frames_bytes: list[bytes], label: str, mode: str,
-                 colors: dict, src: str) -> str:
-    lines = []
+                 colors: dict, src: str, address: int | None,
+                 screen_base: int, no_macros: bool) -> str:
+    """Émet un .asm KickAssembler directement utilisable via #import.
+
+    Le fichier définit :
+      - les constantes <LABEL>_FRAMES, <LABEL>_FRAME_BYTES, couleurs, flag MC
+      - un segment .pc (pinné si --address fourni, sinon * pour relocatable)
+      - le label <label> aligné sur 64 octets
+      - .const <LABEL>_PTR = <label> / 64 (valeur pour le pointeur sprite VIC)
+      - macros install_<label>(num) et set_<label>_frame(num, frame) pour câbler
+        directement les registres VIC-II ($D000+, $D015, $D01C, $D025/26/27+)
+    """
+    UP = label.upper()
+    is_mc = 1 if mode == "multicolor" else 0
+    lines: list[str] = []
+
+    # En-tête + exemple d'intégration --------------------------------------
     lines.append("// " + "=" * 58)
     lines.append(f"// Sprites C64 générés depuis : {os.path.basename(src)}")
-    lines.append(f"// Mode      : {mode}")
-    lines.append(f"// Frames    : {len(frames_bytes)}")
-    lines.append(f"// Taille    : {len(frames_bytes) * SPRITE_BYTES} octets "
-                 f"({SPRITE_BYTES} par frame)")
+    lines.append(f"// Mode      : {mode}    Frames : {len(frames_bytes)}    "
+                 f"Octets : {len(frames_bytes) * SPRITE_BYTES}")
     if mode == "multicolor":
-        lines.append(f"// Couleurs  : bg=${colors['bg']:02x} ({C64_COLOR_NAMES[colors['bg']]})  "
-                     f"mc1=${colors['mc1']:02x}  mc2=${colors['mc2']:02x}  "
-                     f"sprite=${colors['fg']:02x}")
+        lines.append(f"// Couleurs  : bg=${colors['bg']:02x}  mc1=${colors['mc1']:02x}  "
+                     f"mc2=${colors['mc2']:02x}  sprite=${colors['fg']:02x}")
     else:
-        lines.append(f"// Couleurs  : bg=${colors['bg']:02x}  fg=${colors['fg']:02x} "
-                     f"({C64_COLOR_NAMES[colors['fg']]})")
-    lines.append("// Aligner sur 64 octets : .align $40 ou bloc dédié")
-    lines.append("// Pointeur sprite N : (adresse_label / 64) + offset_frame")
+        lines.append(f"// Couleurs  : bg=${colors['bg']:02x}  fg=${colors['fg']:02x}")
+    lines.append("//")
+    lines.append("// Intégration dans main.asm :")
+    lines.append(f"//     #import \"{os.path.basename('data/' + label)}.asm\"")
+    lines.append(f"//     install_{label}(0)              // affecte sprite 0")
+    lines.append(f"//     lda #100  : sta $d000           // X")
+    lines.append(f"//     lda #120  : sta $d001           // Y")
+    lines.append(f"//     set_{label}_frame(0, 2)         // change la frame")
     lines.append("// " + "=" * 58)
     lines.append("")
-    lines.append(f".const {label.upper()}_FRAMES = {len(frames_bytes)}")
-    lines.append(f".const {label.upper()}_FRAME_BYTES = {SPRITE_BYTES}")
+
+    # Constantes -----------------------------------------------------------
+    lines.append(f".const {UP}_FRAMES        = {len(frames_bytes)}")
+    lines.append(f".const {UP}_FRAME_BYTES   = {SPRITE_BYTES}")
+    lines.append(f".const {UP}_IS_MULTICOLOR = {is_mc}")
+    lines.append(f".const {UP}_BG_COLOR      = ${colors['bg']:02x}")
+    lines.append(f".const {UP}_FG_COLOR      = ${colors['fg']:02x}")
+    if mode == "multicolor":
+        lines.append(f".const {UP}_MC1_COLOR     = ${colors['mc1']:02x}")
+        lines.append(f".const {UP}_MC2_COLOR     = ${colors['mc2']:02x}")
+    lines.append(f".const {UP}_SCREEN_BASE   = ${screen_base:04x}")
     lines.append("")
-    lines.append("* = * \"sprites\"")
+
+    # Segment de données ---------------------------------------------------
+    if address is not None:
+        lines.append(f".pc = ${address:04x} \"{label} data\"")
+    else:
+        lines.append(f".pc = * \"{label} data\"")
     lines.append(".align $40")
     lines.append(f"{label}:")
     for i, fb in enumerate(frames_bytes):
@@ -286,22 +316,84 @@ def emit_kickass(frames_bytes: list[bytes], label: str, mode: str,
         for row in range(SPRITE_H):
             chunk = fb[row * 3:(row + 1) * 3]
             lines.append("    .byte " + ", ".join(f"${b:02x}" for b in chunk))
-        lines.append(f"    .byte $00  // padding")
+        lines.append("    .byte $00")
+    lines.append("")
+    lines.append(f".const {UP}_PTR = {label} / 64")
+    lines.append("")
+
+    # Macros d'installation ------------------------------------------------
+    if not no_macros:
+        lines.append("// Active le sprite num (0-7), pose le pointeur, la couleur,")
+        lines.append("// le bit multicolor le cas échéant et le bit d'enable.")
+        lines.append(f".macro install_{label}(num) {{")
+        lines.append(f"    lda #{UP}_PTR")
+        lines.append(f"    sta {UP}_SCREEN_BASE + $03f8 + num")
+        lines.append(f"    lda #{UP}_FG_COLOR")
+        lines.append("    sta $d027 + num")
+        if mode == "multicolor":
+            lines.append(f"    lda #{UP}_MC1_COLOR")
+            lines.append("    sta $d025")
+            lines.append(f"    lda #{UP}_MC2_COLOR")
+            lines.append("    sta $d026")
+            lines.append("    lda $d01c")
+            lines.append("    ora #(1 << num)")
+            lines.append("    sta $d01c")
+        else:
+            lines.append("    lda $d01c")
+            lines.append("    and #($ff ^ (1 << num))")
+            lines.append("    sta $d01c")
+        lines.append("    lda $d015")
+        lines.append("    ora #(1 << num)")
+        lines.append("    sta $d015")
+        lines.append("}")
+        lines.append("")
+        lines.append("// Change la frame courante du sprite num en repointant")
+        lines.append(f".macro set_{label}_frame(num, frame) {{")
+        lines.append(f"    lda #{UP}_PTR + frame")
+        lines.append(f"    sta {UP}_SCREEN_BASE + $03f8 + num")
+        lines.append("}")
+        lines.append("")
+        lines.append("// Variante runtime : A = numéro de frame (0..FRAMES-1), X = num sprite")
+        lines.append(f"set_{label}_frame_a:")
+        lines.append(f"    clc")
+        lines.append(f"    adc #{UP}_PTR")
+        lines.append(f"    sta {UP}_SCREEN_BASE + $03f8, x")
+        lines.append("    rts")
+        lines.append("")
     return "\n".join(lines) + "\n"
 
 
 def emit_acme(frames_bytes: list[bytes], label: str, mode: str,
-              colors: dict, src: str) -> str:
-    lines = []
+              colors: dict, src: str, address: int | None,
+              screen_base: int, no_macros: bool) -> str:
+    """Émet un .a ACME directement utilisable via !source.
+
+    Pose les constantes équivalentes et un label aligné 64 octets.
+    """
+    UP = label.upper()
+    is_mc = 1 if mode == "multicolor" else 0
+    lines: list[str] = []
     lines.append("; " + "=" * 58)
     lines.append(f"; Sprites C64 générés depuis : {os.path.basename(src)}  (mode {mode})")
     lines.append(f"; Frames : {len(frames_bytes)}, {SPRITE_BYTES} octets/frame")
+    lines.append(";")
+    lines.append(f";   !source \"{label}.a\"")
+    lines.append(f";   jsr install_{label}        ; X = num sprite, A = num frame")
     lines.append("; " + "=" * 58)
     lines.append("")
-    lines.append(f"{label.upper()}_FRAMES = {len(frames_bytes)}")
-    lines.append(f"{label.upper()}_FRAME_BYTES = {SPRITE_BYTES}")
+    lines.append(f"{UP}_FRAMES        = {len(frames_bytes)}")
+    lines.append(f"{UP}_FRAME_BYTES   = {SPRITE_BYTES}")
+    lines.append(f"{UP}_IS_MULTICOLOR = {is_mc}")
+    lines.append(f"{UP}_BG_COLOR      = ${colors['bg']:02x}")
+    lines.append(f"{UP}_FG_COLOR      = ${colors['fg']:02x}")
+    if mode == "multicolor":
+        lines.append(f"{UP}_MC1_COLOR     = ${colors['mc1']:02x}")
+        lines.append(f"{UP}_MC2_COLOR     = ${colors['mc2']:02x}")
+    lines.append(f"{UP}_SCREEN_BASE   = ${screen_base:04x}")
     lines.append("")
-    lines.append(f"!align 63, 0    ; aligner sur 64 octets")
+    if address is not None:
+        lines.append(f"* = ${address:04x}")
+    lines.append("!align 63, 0")
     lines.append(f"{label}:")
     for i, fb in enumerate(frames_bytes):
         lines.append(f"; --- frame {i} ---")
@@ -309,6 +401,68 @@ def emit_acme(frames_bytes: list[bytes], label: str, mode: str,
             chunk = fb[row * 3:(row + 1) * 3]
             lines.append("    !byte " + ", ".join(f"${b:02x}" for b in chunk))
         lines.append("    !byte $00")
+    lines.append("")
+    lines.append(f"{UP}_PTR = {label} / 64")
+    lines.append("")
+    if not no_macros:
+        lines.append(f"; X = num sprite (0..7), A = numéro de frame")
+        lines.append(f"install_{label}:")
+        lines.append(f"    pha")
+        lines.append(f"    lda #<{UP}_FG_COLOR")
+        lines.append(f"    sta $d027,x")
+        if mode == "multicolor":
+            lines.append(f"    lda #{UP}_MC1_COLOR : sta $d025")
+            lines.append(f"    lda #{UP}_MC2_COLOR : sta $d026")
+            lines.append(f"    lda $d01c")
+            lines.append(f"    ora bit_table,x")
+            lines.append(f"    sta $d01c")
+        lines.append(f"    lda $d015")
+        lines.append(f"    ora bit_table,x")
+        lines.append(f"    sta $d015")
+        lines.append(f"    pla")
+        lines.append(f"    clc")
+        lines.append(f"    adc #{UP}_PTR")
+        lines.append(f"    sta {UP}_SCREEN_BASE + $3f8,x")
+        lines.append(f"    rts")
+        lines.append(f"bit_table: !byte $01,$02,$04,$08,$10,$20,$40,$80")
+    return "\n".join(lines) + "\n"
+
+
+def emit_binary_with_wrapper(frames_bytes: list[bytes], label: str, mode: str,
+                             colors: dict, output_bin: str, address: int | None,
+                             screen_base: int) -> str:
+    """Émet un wrapper KickAssembler qui inclut le binaire via .import binary.
+
+    Sortie : le .bin (à output_bin) + un .asm wrapper retourné en chaîne.
+    """
+    UP = label.upper()
+    is_mc = 1 if mode == "multicolor" else 0
+    bin_name = os.path.basename(output_bin)
+    lines: list[str] = []
+    lines.append("// " + "=" * 58)
+    lines.append(f"// Wrapper de sprites — données brutes : {bin_name}")
+    lines.append(f"// Frames : {len(frames_bytes)}    Mode : {mode}")
+    lines.append("// " + "=" * 58)
+    lines.append("")
+    lines.append(f".const {UP}_FRAMES        = {len(frames_bytes)}")
+    lines.append(f".const {UP}_FRAME_BYTES   = {SPRITE_BYTES}")
+    lines.append(f".const {UP}_IS_MULTICOLOR = {is_mc}")
+    lines.append(f".const {UP}_BG_COLOR      = ${colors['bg']:02x}")
+    lines.append(f".const {UP}_FG_COLOR      = ${colors['fg']:02x}")
+    if mode == "multicolor":
+        lines.append(f".const {UP}_MC1_COLOR     = ${colors['mc1']:02x}")
+        lines.append(f".const {UP}_MC2_COLOR     = ${colors['mc2']:02x}")
+    lines.append(f".const {UP}_SCREEN_BASE   = ${screen_base:04x}")
+    lines.append("")
+    if address is not None:
+        lines.append(f".pc = ${address:04x} \"{label} data\"")
+    else:
+        lines.append(f".pc = * \"{label} data\"")
+    lines.append(".align $40")
+    lines.append(f"{label}:")
+    lines.append(f"    .import binary \"{bin_name}\"")
+    lines.append("")
+    lines.append(f".const {UP}_PTR = {label} / 64")
     return "\n".join(lines) + "\n"
 
 
@@ -376,7 +530,31 @@ def build_argparser() -> argparse.ArgumentParser:
 
     p.add_argument("--preview", default=None,
                    help="Écrit un PNG d'aperçu (toutes frames concaténées)")
+
+    # --- Intégration directe dans le code C64 ---
+    p.add_argument("--address", default=None,
+                   help="Adresse hexa de pin du segment (ex: $3000). "
+                        "Sans cette option, le bloc est relocatable (.pc = *).")
+    p.add_argument("--screen-base", default="$0400",
+                   help="Adresse RAM écran (où vivent les pointeurs sprites $XXF8-$XXFF). "
+                        "Utilisée par les macros install_/set_frame.")
+    p.add_argument("--no-macros", action="store_true",
+                   help="N'émet pas les macros install_/set_frame, seulement les données.")
+    p.add_argument("--bin-wrapper", action="store_true",
+                   help="En mode --syntax bin : émet aussi un .asm wrapper qui inclut "
+                        "le binaire via .import binary.")
     return p
+
+
+def _parse_addr(s: str | None) -> int | None:
+    if s is None:
+        return None
+    s = s.strip().lower()
+    if s.startswith("$"):
+        return int(s[1:], 16)
+    if s.startswith("0x"):
+        return int(s, 16)
+    return int(s, 0)
 
 
 def write_preview(path: str, sprites_pixels: list[np.ndarray], colors: dict,
@@ -438,16 +616,28 @@ def main(argv: list[str] | None = None) -> int:
     colors = {"bg": args.bg_color, "fg": args.fg_color,
               "mc1": args.mc1, "mc2": args.mc2}
 
+    address = _parse_addr(args.address)
+    screen_base = _parse_addr(args.screen_base) or 0x0400
+
     if args.syntax == "bin":
         with open(output, "wb") as f:
             for fb in encoded:
                 f.write(fb)
+        if args.bin_wrapper:
+            wrapper_path = os.path.splitext(output)[0] + ".asm"
+            text = emit_binary_with_wrapper(encoded, args.label, args.mode,
+                                            colors, output, address, screen_base)
+            with open(wrapper_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            print(f"      wrapper KickAssembler : {wrapper_path}")
     elif args.syntax == "kickass":
-        text = emit_kickass(encoded, args.label, args.mode, colors, args.input)
+        text = emit_kickass(encoded, args.label, args.mode, colors,
+                            args.input, address, screen_base, args.no_macros)
         with open(output, "w", encoding="utf-8") as f:
             f.write(text)
     else:  # acme
-        text = emit_acme(encoded, args.label, args.mode, colors, args.input)
+        text = emit_acme(encoded, args.label, args.mode, colors,
+                         args.input, address, screen_base, args.no_macros)
         with open(output, "w", encoding="utf-8") as f:
             f.write(text)
 
