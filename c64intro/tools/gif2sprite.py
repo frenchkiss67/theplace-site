@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-gif2sprite.py — Générateur de sprites Commodore 64 à partir de GIF ou MP4.
+gif2sprite.py — Générateur de sprites depuis un GIF ou un MP4.
 
-Convertit chaque image (frame) en sprite hardware C64 :
-  - Hi-res     : 24 x 21 pixels, 1 bit/pixel, 63 octets utiles (+1 padding = 64)
-  - Multicolor : 12 x 21 pixels logiques, 2 bits/pixel, 63 octets utiles (+1 padding)
+Cibles supportées :
+  - C64 (Commodore 64, VIC-II)
+      * Hi-res     : 24 x 21, 1 bit/pixel, 63+1 octets
+      * Multicolor : 12 x 21 logique, 2 bits/pixel, 63+1 octets
+  - Amiga 500 (OCS, Denise)
+      * Sprite hardware 16 x H (H configurable, défaut 21)
+      * 2 bitplanes interleavés (4 couleurs : transparent + 3)
+      * En-tête SPRxPOS/SPRxCTL + lignes plane A/plane B + terminator 0,0
+      * Mots big-endian m68k, sortie vasm/devpac (dc.w) ou binaire
 
-Sortie : KickAssembler (.asm), ACME (!byte), ou binaire brut (.bin / .prg).
+Sorties : KickAssembler (.asm), ACME (.a), vasm/devpac (.s), binaire brut.
 
-Usage typique :
-    python3 gif2sprite.py logo.gif -o sprites.asm --mode multicolor \
-        --bg-color 0 --fg-color 1 --mc1 11 --mc2 12 --label logo_anim
-    python3 gif2sprite.py demo.mp4 -o run.bin --syntax bin --fps 12 --max-frames 32
+Exemples :
+    # C64 multicolor
+    python3 gif2sprite.py logo.gif -o data/logo.asm --target c64 \
+        --mode multicolor --label logo --address '$3000'
+
+    # Amiga 500, vasm
+    python3 gif2sprite.py logo.gif -o data/logo.s --target amiga \
+        --label logo --height 21 --vstart 80 --hstart 128
 """
 
 from __future__ import annotations
@@ -48,6 +58,35 @@ C64_PALETTE = np.array([
 SPRITE_W = 24
 SPRITE_H = 21
 SPRITE_BYTES = 64  # 63 utiles + 1 de padding
+
+# Amiga OCS : sprite 16 px de large, hauteur variable.
+AMIGA_SPRITE_W = 16
+
+
+def rgb_to_ocs12(rgb: tuple[int, int, int]) -> int:
+    """Convertit un RGB 24 bits vers la valeur 12 bits OCS ($XXX)."""
+    r, g, b = rgb
+    return ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
+
+
+def ocs12_to_rgb(v: int) -> tuple[int, int, int]:
+    r = (v >> 8) & 0xF
+    g = (v >> 4) & 0xF
+    b = v & 0xF
+    return (r * 0x11, g * 0x11, b * 0x11)
+
+
+def parse_ocs_color(s: str) -> int:
+    """Parse une couleur Amiga OCS : '$f80', '#ff8800' ou 'fa0'."""
+    s = s.strip().lower().lstrip("#")
+    if s.startswith("$"):
+        s = s[1:]
+    if len(s) == 3:
+        return int(s, 16)
+    if len(s) == 6:
+        rgb = (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+        return rgb_to_ocs12(rgb)
+    raise argparse.ArgumentTypeError(f"Couleur OCS invalide : {s}")
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +280,140 @@ def encode_multicolor(codes: np.ndarray) -> bytes:
                 byte |= v << (6 - p * 2)
             out.append(byte)
     out.append(0)
+    return bytes(out)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Amiga 500 (OCS) : 16 px de large, 4 couleurs, 2 bitplanes
+# ---------------------------------------------------------------------------
+
+def fit_to_amiga(img: Image.Image, width: int, height: int, fit: str,
+                 bg_rgb: tuple[int, int, int]) -> Image.Image:
+    """Redimensionne vers la grille du sprite Amiga (W x H, RGB aplati)."""
+    src = img.convert("RGBA")
+    sw, sh = src.size
+    if fit == "stretch":
+        scaled = src.resize((width, height), Image.LANCZOS)
+    else:
+        sx = width / sw
+        sy = height / sh
+        scale = min(sx, sy) if fit == "contain" else max(sx, sy)
+        nw = max(1, int(round(sw * scale)))
+        nh = max(1, int(round(sh * scale)))
+        resized = src.resize((nw, nh), Image.LANCZOS)
+        scaled = Image.new("RGBA", (width, height), bg_rgb + (255,))
+        if fit == "contain":
+            scaled.paste(resized, ((width - nw) // 2, (height - nh) // 2), resized)
+        else:
+            ox = (nw - width) // 2
+            oy = (nh - height) // 2
+            crop = resized.crop((ox, oy, ox + width, oy + height))
+            scaled.paste(crop, (0, 0), crop)
+    flat = Image.new("RGB", scaled.size, bg_rgb)
+    flat.paste(scaled, mask=scaled.split()[3])
+    return flat
+
+
+def amiga_palette_from_frames(scaled_frames: list[Image.Image],
+                              bg_rgb: tuple[int, int, int],
+                              fixed: list[int] | None) -> tuple[list[int], list[np.ndarray]]:
+    """Construit une palette OCS de 4 couleurs (12 bits) cohérente entre frames.
+
+    L'index 0 est toujours réservé à la couleur transparente (bg_rgb).
+    Si `fixed` est fourni : 3 valeurs OCS 12 bits pour les couleurs 1,2,3.
+    Sinon : quantification PIL sur la concaténation des frames.
+
+    Retourne (palette_ocs[4], grids[N] avec valeurs 0..3 par pixel).
+    """
+    bg_ocs = rgb_to_ocs12(bg_rgb)
+
+    if fixed is not None:
+        palette_ocs = [bg_ocs] + list(fixed[:3])
+        # compléter à 4
+        while len(palette_ocs) < 4:
+            palette_ocs.append(0x000)
+        palette_rgb = np.array([ocs12_to_rgb(c) for c in palette_ocs], dtype=np.int16)
+        grids = []
+        for fr in scaled_frames:
+            arr = np.array(fr.convert("RGB")).astype(np.int16)
+            diff = arr[:, :, None, :] - palette_rgb[None, None, :, :]
+            dist = (diff.astype(np.float32) ** 2).sum(axis=3)
+            grids.append(np.argmin(dist, axis=2).astype(np.uint8))
+        return palette_ocs, grids
+
+    # Quantification automatique : concaténation puis PIL.quantize(4)
+    total_w = sum(f.size[0] for f in scaled_frames)
+    max_h = max(f.size[1] for f in scaled_frames)
+    concat = Image.new("RGB", (total_w, max_h), bg_rgb)
+    x = 0
+    for f in scaled_frames:
+        concat.paste(f, (x, 0))
+        x += f.size[0]
+    quantized = concat.quantize(colors=4, method=Image.MEDIANCUT, dither=Image.NONE)
+    pal_raw = quantized.getpalette()[:12]
+    pal_rgb = [(pal_raw[i * 3], pal_raw[i * 3 + 1], pal_raw[i * 3 + 2])
+               for i in range(4)]
+
+    # Réordonner : la couleur la plus proche du fond va en index 0.
+    def dist2(a, b):
+        return sum((x - y) ** 2 for x, y in zip(a, b))
+    bg_idx = min(range(len(pal_rgb)), key=lambda i: dist2(pal_rgb[i], bg_rgb))
+    pal_rgb[0], pal_rgb[bg_idx] = pal_rgb[bg_idx], pal_rgb[0]
+
+    palette_ocs = [rgb_to_ocs12(c) for c in pal_rgb]
+    palette_rgb_arr = np.array(pal_rgb, dtype=np.int16)
+    grids = []
+    for fr in scaled_frames:
+        arr = np.array(fr.convert("RGB")).astype(np.int16)
+        diff = arr[:, :, None, :] - palette_rgb_arr[None, None, :, :]
+        dist = (diff.astype(np.float32) ** 2).sum(axis=3)
+        grids.append(np.argmin(dist, axis=2).astype(np.uint8))
+    return palette_ocs, grids
+
+
+def encode_amiga_sprite(grid: np.ndarray, vstart: int, hstart: int,
+                        attached: bool) -> bytes:
+    """grid (H, 16) avec valeurs 0..3 -> mots big-endian m68k.
+
+    Format DMA Amiga par sprite :
+      [SPRxPOS][SPRxCTL]                            (2 mots = 4 octets)
+      [planeA_row0][planeB_row0]                    (2 mots / ligne)
+      ...
+      [0][0]                                        (terminator)
+
+    SPRxPOS bits : VVVVVVVV HHHHHHHH (V=VSTART low8, H=HSTART bits 8..1)
+    SPRxCTL bits : EEEEEEEE A.....VEH (E=VSTOP low8, A=ATTACH, V=VSTART hi,
+                                        E=VSTOP hi, H=HSTART bit0)
+    """
+    H = grid.shape[0]
+    vstop = vstart + H
+
+    pos = ((vstart & 0xFF) << 8) | ((hstart >> 1) & 0xFF)
+    ctl = (vstop & 0xFF) << 8
+    if attached:
+        ctl |= 0x80
+    if vstart & 0x100:
+        ctl |= 0x04
+    if vstop & 0x100:
+        ctl |= 0x02
+    if hstart & 0x01:
+        ctl |= 0x01
+
+    out = bytearray()
+    out += pos.to_bytes(2, "big")
+    out += ctl.to_bytes(2, "big")
+    for y in range(H):
+        row = grid[y]
+        a = b = 0
+        for x in range(AMIGA_SPRITE_W):
+            v = int(row[x]) & 0x3
+            if v & 1:
+                a |= 1 << (15 - x)
+            if v & 2:
+                b |= 1 << (15 - x)
+        out += a.to_bytes(2, "big")
+        out += b.to_bytes(2, "big")
+    out += b"\x00\x00\x00\x00"
     return bytes(out)
 
 
@@ -467,6 +640,134 @@ def emit_binary_with_wrapper(frames_bytes: list[bytes], label: str, mode: str,
 
 
 # ---------------------------------------------------------------------------
+# Émetteurs Amiga (vasm/devpac/asmone — syntaxe motorola dc.w)
+# ---------------------------------------------------------------------------
+
+def emit_amiga_vasm(frames_bytes: list[bytes], label: str, height: int,
+                    palette_ocs: list[int], src: str, address: int | None,
+                    sprite_num: int, no_macros: bool) -> str:
+    """Émet un .s vasm/devpac directement assemblable.
+
+    Sépare en frames lisibles avec les mots SPRxPOS/SPRxCTL en en-tête,
+    les paires plane A / plane B par ligne, puis le terminator 0,0.
+
+    Pose constantes <LABEL>_HEIGHT, _FRAMES, _FRAME_BYTES, _COLOR1/2/3
+    (valeurs OCS 12 bits prêtes à mettre dans COLOR17/18/19).
+
+    Sous-routine setup_<label>_spr<n> : set SPRxPT, COLOR17-19, DMACON.
+    """
+    UP = label.upper()
+    bytes_per_frame = 8 + 4 * height
+    custom_base = 0xDFF000
+    sprpt = custom_base + 0x120 + sprite_num * 4   # SPR0PT=$dff120
+    color_base = custom_base + 0x1A2 + sprite_num // 2 * 8   # COLOR17 pour SPR0/1
+    # DMACON : SET | DMAEN (bit 9) | SPREN (bit 5) ; le bit SPREN est partagé.
+    dmacon_value = 0x8000 | 0x0200 | 0x0020
+
+    lines: list[str] = []
+    lines.append("; " + "=" * 58)
+    lines.append(f"; Sprite Amiga 500 (OCS) généré depuis : {os.path.basename(src)}")
+    lines.append(f"; Taille      : {AMIGA_SPRITE_W} x {height}")
+    lines.append(f"; Frames      : {len(frames_bytes)}    "
+                 f"Octets/frame : {bytes_per_frame}    "
+                 f"Total : {bytes_per_frame * len(frames_bytes)}")
+    lines.append(f"; Palette OCS : transparent=${palette_ocs[0]:03x}  "
+                 f"col1=${palette_ocs[1]:03x}  col2=${palette_ocs[2]:03x}  "
+                 f"col3=${palette_ocs[3]:03x}")
+    lines.append(";")
+    lines.append("; Intégration :")
+    lines.append(f";   include \"{label}.s\"")
+    lines.append(f";   bsr     setup_{label}_spr{sprite_num}    ; pose pointeur, palette, DMA")
+    lines.append(f";   ; pour changer de frame : ")
+    lines.append(f";   move.l  #{label}+{UP}_FRAME_BYTES*N,${sprpt:06x}")
+    lines.append("; " + "=" * 58)
+    lines.append("")
+    lines.append(f"{UP}_WIDTH       equ  {AMIGA_SPRITE_W}")
+    lines.append(f"{UP}_HEIGHT      equ  {height}")
+    lines.append(f"{UP}_FRAMES      equ  {len(frames_bytes)}")
+    lines.append(f"{UP}_FRAME_BYTES equ  {bytes_per_frame}")
+    lines.append(f"{UP}_COLOR1      equ  ${palette_ocs[1]:03x}")
+    lines.append(f"{UP}_COLOR2      equ  ${palette_ocs[2]:03x}")
+    lines.append(f"{UP}_COLOR3      equ  ${palette_ocs[3]:03x}")
+    lines.append(f"{UP}_SPRITE_NUM  equ  {sprite_num}")
+    lines.append(f"{UP}_SPRPT       equ  ${sprpt:06x}    ; SPR{sprite_num}PT")
+    lines.append(f"{UP}_COLOR_REG   equ  ${color_base:06x}")
+    lines.append("")
+    if address is not None:
+        lines.append(f"    org     ${address:08x}")
+    lines.append("    even")
+    lines.append(f"{label}:")
+    for i, fb in enumerate(frames_bytes):
+        words = [(fb[j] << 8) | fb[j + 1] for j in range(0, len(fb), 2)]
+        lines.append(f"; --- frame {i} ---")
+        lines.append(f"    dc.w    ${words[0]:04x},${words[1]:04x}      "
+                     f"; SPR{sprite_num}POS, SPR{sprite_num}CTL")
+        for r in range(height):
+            o = 2 + r * 2
+            lines.append(f"    dc.w    ${words[o]:04x},${words[o + 1]:04x}")
+        lines.append(f"    dc.w    ${words[-2]:04x},${words[-1]:04x}      ; terminator")
+    lines.append("")
+
+    if not no_macros:
+        lines.append("; ----------------------------------------------------------")
+        lines.append(f"; Installe le sprite : pose SPR{sprite_num}PT, palette,")
+        lines.append("; et active le DMA sprite (SPREN dans DMACON).")
+        lines.append("; ----------------------------------------------------------")
+        lines.append(f"setup_{label}_spr{sprite_num}:")
+        lines.append(f"    move.l  #{label},{UP}_SPRPT")
+        lines.append(f"    move.w  #{UP}_COLOR1,{UP}_COLOR_REG")
+        lines.append(f"    move.w  #{UP}_COLOR2,{UP}_COLOR_REG+2")
+        lines.append(f"    move.w  #{UP}_COLOR3,{UP}_COLOR_REG+4")
+        lines.append(f"    move.w  #${dmacon_value:04x},$dff096    "
+                     f"; DMACON : SET | DMAEN | SPREN")
+        lines.append("    rts")
+        lines.append("")
+        lines.append("; Change de frame : D0.w = numéro de frame (0..FRAMES-1)")
+        lines.append(f"set_{label}_frame:")
+        lines.append("    mulu.w  #" + UP + "_FRAME_BYTES,d0")
+        lines.append(f"    add.l   #{label},d0")
+        lines.append(f"    move.l  d0,{UP}_SPRPT")
+        lines.append("    rts")
+    return "\n".join(lines) + "\n"
+
+
+def emit_amiga_binary_wrapper(frames_bytes: list[bytes], label: str, height: int,
+                              palette_ocs: list[int], output_bin: str,
+                              address: int | None, sprite_num: int) -> str:
+    """Wrapper vasm qui incbin le binaire Amiga."""
+    UP = label.upper()
+    bytes_per_frame = 8 + 4 * height
+    bin_name = os.path.basename(output_bin)
+    custom_base = 0xDFF000
+    sprpt = custom_base + 0x120 + sprite_num * 4
+    color_base = custom_base + 0x1A2 + sprite_num // 2 * 8
+
+    lines: list[str] = []
+    lines.append("; " + "=" * 58)
+    lines.append(f"; Wrapper sprite Amiga — données brutes : {bin_name}")
+    lines.append(f"; {AMIGA_SPRITE_W}x{height}, {len(frames_bytes)} frames, "
+                 f"{bytes_per_frame} octets/frame")
+    lines.append("; " + "=" * 58)
+    lines.append("")
+    lines.append(f"{UP}_WIDTH       equ  {AMIGA_SPRITE_W}")
+    lines.append(f"{UP}_HEIGHT      equ  {height}")
+    lines.append(f"{UP}_FRAMES      equ  {len(frames_bytes)}")
+    lines.append(f"{UP}_FRAME_BYTES equ  {bytes_per_frame}")
+    lines.append(f"{UP}_COLOR1      equ  ${palette_ocs[1]:03x}")
+    lines.append(f"{UP}_COLOR2      equ  ${palette_ocs[2]:03x}")
+    lines.append(f"{UP}_COLOR3      equ  ${palette_ocs[3]:03x}")
+    lines.append(f"{UP}_SPRPT       equ  ${sprpt:06x}")
+    lines.append(f"{UP}_COLOR_REG   equ  ${color_base:06x}")
+    lines.append("")
+    if address is not None:
+        lines.append(f"    org     ${address:08x}")
+    lines.append("    even")
+    lines.append(f"{label}:")
+    lines.append(f"    incbin  \"{bin_name}\"")
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -489,16 +790,18 @@ def parse_color(value: str) -> int:
 
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Génère des sprites Commodore 64 (24x21) depuis un GIF ou MP4.",
+        description="Génère des sprites C64 (24x21) ou Amiga 500 (16xH) depuis un GIF ou MP4.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("input", help="Fichier source (.gif, .mp4, .png, ...)")
     p.add_argument("-o", "--output", default=None,
-                   help="Fichier de sortie. Défaut : <input>.asm (ou .bin si --syntax bin)")
+                   help="Fichier de sortie. Défaut : <input>.asm/.s (ou .bin si --syntax bin)")
+    p.add_argument("--target", choices=("c64", "amiga"), default="c64",
+                   help="Plateforme cible : C64 (VIC-II) ou Amiga 500 (OCS)")
     p.add_argument("--mode", choices=("hires", "multicolor"), default="multicolor",
-                   help="Mode du sprite : hi-res 1 bpp ou multicolor 2 bpp")
-    p.add_argument("--syntax", choices=("kickass", "acme", "bin"), default="kickass",
-                   help="Format de sortie")
+                   help="C64 uniquement : hi-res 1 bpp ou multicolor 2 bpp")
+    p.add_argument("--syntax", choices=("kickass", "acme", "vasm", "bin"), default=None,
+                   help="Format de sortie. Défaut : kickass pour C64, vasm pour Amiga")
     p.add_argument("--label", default="sprite_data",
                    help="Label assembleur du bloc de données")
 
@@ -541,8 +844,23 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--no-macros", action="store_true",
                    help="N'émet pas les macros install_/set_frame, seulement les données.")
     p.add_argument("--bin-wrapper", action="store_true",
-                   help="En mode --syntax bin : émet aussi un .asm wrapper qui inclut "
-                        "le binaire via .import binary.")
+                   help="En mode --syntax bin : émet aussi un .asm/.s wrapper qui inclut "
+                        "le binaire (.import binary pour C64, incbin pour Amiga).")
+
+    # --- Options spécifiques Amiga 500 ---
+    p.add_argument("--height", type=int, default=21,
+                   help="Amiga : hauteur du sprite en lignes")
+    p.add_argument("--vstart", type=int, default=0,
+                   help="Amiga : ligne de départ verticale (SPRxPOS, 0 = laisser au runtime)")
+    p.add_argument("--hstart", type=int, default=0,
+                   help="Amiga : pixel de départ horizontal (SPRxPOS, 0 = laisser au runtime)")
+    p.add_argument("--sprite-num", type=int, default=0, choices=range(8),
+                   help="Amiga : numéro du sprite hardware (0..7) pour les macros install/set_frame")
+    p.add_argument("--attached", action="store_true",
+                   help="Amiga : active le bit ATTACH dans SPRxCTL (sprites pairés 15 couleurs)")
+    p.add_argument("--amiga-palette", default=None,
+                   help="Amiga : palette explicite, 3 valeurs OCS séparées par virgules. "
+                        "Ex : '$f00,$0f0,$00f' ou '#ff0000,#00ff00,#0000ff'")
     return p
 
 
@@ -587,20 +905,18 @@ def write_preview(path: str, sprites_pixels: list[np.ndarray], colors: dict,
         (out.shape[1] * 4, out.shape[0] * 4), Image.NEAREST).save(path)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_argparser().parse_args(argv)
+def _default_syntax(target: str) -> str:
+    return "vasm" if target == "amiga" else "kickass"
 
-    output = args.output
-    if output is None:
-        base = os.path.splitext(args.input)[0]
-        output = base + (".bin" if args.syntax == "bin" else ".asm")
 
-    frames = load_frames(args.input, args.fps, args.max_frames,
-                         args.start_frame, args.frame_step)
+def _default_ext(syntax: str) -> str:
+    return {"bin": ".bin", "vasm": ".s", "kickass": ".asm", "acme": ".a"}[syntax]
 
+
+def _run_c64(args, frames, address) -> tuple[list[bytes], list[np.ndarray], dict, str]:
     bg_rgb = tuple(int(c) for c in C64_PALETTE[args.bg_color])
     encoded: list[bytes] = []
-    pixel_grids: list[np.ndarray] = []
+    grids: list[np.ndarray] = []
     for fr in frames:
         scaled = fit_to_sprite(fr, args.mode, args.fit, bg_rgb)
         if args.mode == "hires":
@@ -611,42 +927,135 @@ def main(argv: list[str] | None = None) -> int:
             grid = quantize_multicolor(scaled, args.bg_color, args.mc1,
                                        args.mc2, args.fg_color)
             encoded.append(encode_multicolor(grid))
-        pixel_grids.append(grid)
-
+        grids.append(grid)
     colors = {"bg": args.bg_color, "fg": args.fg_color,
               "mc1": args.mc1, "mc2": args.mc2}
+    summary = f"C64 mode {args.mode}, {len(encoded) * SPRITE_BYTES} octets"
+    return encoded, grids, colors, summary
+
+
+def _run_amiga(args, frames, address):
+    if args.bg_color > 15:
+        # garde-fou : on accepte les indices C64 comme valeur de fond initiale
+        sys.exit("--bg-color invalide pour Amiga (utiliser 0..15 ou redéfinir un RGB)")
+    bg_rgb = tuple(int(c) for c in C64_PALETTE[args.bg_color])
+
+    fixed = None
+    if args.amiga_palette:
+        parts = [s for s in args.amiga_palette.split(",") if s.strip()]
+        if len(parts) != 3:
+            sys.exit("--amiga-palette attend exactement 3 couleurs séparées par virgules.")
+        fixed = [parse_ocs_color(p) for p in parts]
+
+    scaled_frames = [fit_to_amiga(fr, AMIGA_SPRITE_W, args.height, args.fit, bg_rgb)
+                     for fr in frames]
+    palette_ocs, grids = amiga_palette_from_frames(scaled_frames, bg_rgb, fixed)
+
+    encoded = [encode_amiga_sprite(g, args.vstart, args.hstart, args.attached)
+               for g in grids]
+    bytes_per_frame = 8 + 4 * args.height
+    summary = (f"Amiga OCS {AMIGA_SPRITE_W}x{args.height}, "
+               f"{bytes_per_frame * len(encoded)} octets, "
+               f"palette ${palette_ocs[0]:03x}/${palette_ocs[1]:03x}/"
+               f"${palette_ocs[2]:03x}/${palette_ocs[3]:03x}")
+    return encoded, grids, palette_ocs, summary
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_argparser().parse_args(argv)
+
+    syntax = args.syntax or _default_syntax(args.target)
+    if args.target == "amiga" and syntax in ("kickass", "acme"):
+        sys.exit(f"--target amiga incompatible avec --syntax {syntax} "
+                 f"(utiliser vasm ou bin).")
+    if args.target == "c64" and syntax == "vasm":
+        sys.exit("--syntax vasm est réservé à --target amiga.")
+
+    output = args.output
+    if output is None:
+        base = os.path.splitext(args.input)[0]
+        output = base + _default_ext(syntax)
+
+    frames = load_frames(args.input, args.fps, args.max_frames,
+                         args.start_frame, args.frame_step)
 
     address = _parse_addr(args.address)
     screen_base = _parse_addr(args.screen_base) or 0x0400
 
-    if args.syntax == "bin":
-        with open(output, "wb") as f:
-            for fb in encoded:
-                f.write(fb)
-        if args.bin_wrapper:
-            wrapper_path = os.path.splitext(output)[0] + ".asm"
-            text = emit_binary_with_wrapper(encoded, args.label, args.mode,
-                                            colors, output, address, screen_base)
-            with open(wrapper_path, "w", encoding="utf-8") as f:
+    if args.target == "c64":
+        encoded, grids, colors, summary = _run_c64(args, frames, address)
+
+        if syntax == "bin":
+            with open(output, "wb") as f:
+                for fb in encoded:
+                    f.write(fb)
+            if args.bin_wrapper:
+                wrapper_path = os.path.splitext(output)[0] + ".asm"
+                text = emit_binary_with_wrapper(encoded, args.label, args.mode,
+                                                colors, output, address, screen_base)
+                with open(wrapper_path, "w", encoding="utf-8") as f:
+                    f.write(text)
+                print(f"      wrapper KickAssembler : {wrapper_path}")
+        elif syntax == "kickass":
+            text = emit_kickass(encoded, args.label, args.mode, colors,
+                                args.input, address, screen_base, args.no_macros)
+            with open(output, "w", encoding="utf-8") as f:
                 f.write(text)
-            print(f"      wrapper KickAssembler : {wrapper_path}")
-    elif args.syntax == "kickass":
-        text = emit_kickass(encoded, args.label, args.mode, colors,
-                            args.input, address, screen_base, args.no_macros)
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(text)
-    else:  # acme
-        text = emit_acme(encoded, args.label, args.mode, colors,
-                         args.input, address, screen_base, args.no_macros)
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(text)
+        else:  # acme
+            text = emit_acme(encoded, args.label, args.mode, colors,
+                             args.input, address, screen_base, args.no_macros)
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(text)
 
-    if args.preview:
-        write_preview(args.preview, pixel_grids, colors, args.mode)
+        if args.preview:
+            write_preview(args.preview, grids, colors, args.mode)
 
-    print(f"OK : {len(encoded)} frame(s) → {output} "
-          f"({len(encoded) * SPRITE_BYTES} octets, mode {args.mode})")
+    else:  # amiga
+        encoded, grids, palette_ocs, summary = _run_amiga(args, frames, address)
+
+        if syntax == "bin":
+            with open(output, "wb") as f:
+                for fb in encoded:
+                    f.write(fb)
+            if args.bin_wrapper:
+                wrapper_path = os.path.splitext(output)[0] + ".s"
+                text = emit_amiga_binary_wrapper(encoded, args.label, args.height,
+                                                 palette_ocs, output, address,
+                                                 args.sprite_num)
+                with open(wrapper_path, "w", encoding="utf-8") as f:
+                    f.write(text)
+                print(f"      wrapper vasm : {wrapper_path}")
+        else:  # vasm
+            text = emit_amiga_vasm(encoded, args.label, args.height,
+                                   palette_ocs, args.input, address,
+                                   args.sprite_num, args.no_macros)
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(text)
+
+        if args.preview:
+            write_amiga_preview(args.preview, grids, palette_ocs)
+
+    print(f"OK : {len(encoded)} frame(s) → {output}  ({summary})")
     return 0
+
+
+def write_amiga_preview(path: str, grids: list[np.ndarray],
+                        palette_ocs: list[int]) -> None:
+    """Aperçu PNG pour les frames Amiga."""
+    pal_rgb = np.array([ocs12_to_rgb(c) for c in palette_ocs], dtype=np.uint8)
+    n = len(grids)
+    h = grids[0].shape[0]
+    cols = min(n, 8)
+    rows = (n + cols - 1) // cols
+    out = np.full((rows * (h + 1) + 1, cols * (AMIGA_SPRITE_W + 1) + 1, 3),
+                  40, dtype=np.uint8)
+    for i, g in enumerate(grids):
+        gy, gx = divmod(i, cols)
+        x0 = 1 + gx * (AMIGA_SPRITE_W + 1)
+        y0 = 1 + gy * (h + 1)
+        out[y0:y0 + h, x0:x0 + AMIGA_SPRITE_W] = pal_rgb[g]
+    Image.fromarray(out, "RGB").resize(
+        (out.shape[1] * 4, out.shape[0] * 4), Image.NEAREST).save(path)
 
 
 if __name__ == "__main__":
