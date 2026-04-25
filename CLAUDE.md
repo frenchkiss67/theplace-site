@@ -1,145 +1,85 @@
-# Commodore 64 Intro — Projet Assembleur 6502/6510
+# CLAUDE.md
 
-## Description du projet
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Intro-demo style Commodore 64 en assembleur 6510, comportant trois effets classiques de la scène demo :
+## Repository overview
 
-1. **Logo en haut de l'écran** — Un logo bitmap affiché en mode hi-res ou multicolor dans la partie supérieure de l'écran
-2. **Raster bars** — Barres de couleurs horizontales animées dans le border et/ou la zone d'écran, synchronisées avec le raster beam via des interruptions IRQ
-3. **Sinus scroll** — Texte défilant horizontalement avec mouvement sinusoïdal vertical (wave effect), utilisant des caractères software-scrollés
+Despite the repo name `theplace-site`, the only active codebase here is **`c64intro/`** — a Commodore 64 intro/demo written in 6510 assembler for KickAssembler. It produces a single PAL `intro.prg` with three classic effects: a hi-res bitmap logo at the top, animated raster bars in the middle band, and a sinus scroller across the lower screen.
 
-## Architecture technique
+The repo root also contains **`env_local.txt`**, **`index_js.txt`**, **`package_json.txt`**, and **`theplace-site-code.pdf`** — these are plain-text snapshots of an unrelated Next.js / Supabase / EmailJS site (kept for reference only). They are **not** wired into any build and should generally be left alone unless the user explicitly asks about them.
 
-### Mémoire C64
-- **$0400–$07FF** : Écran texte (screen RAM)
-- **$D000–$D3FF** : Registres VIC-II (video chip)
-- **$D400–$D7FF** : Registres SID (son, optionnel)
-- **$D800–$DBFF** : Color RAM
-- **$C000–$CFFF** : Zone libre pour le code principal
-- **$2000–$3FFF** : Bitmap du logo (8 Ko)
-- **$E000–$FFFF** : Zone alternative pour bitmap si le Kernal est désactivé
+## Build / run
 
-### Registres VIC-II essentiels
-| Registre | Adresse | Rôle |
-|----------|---------|------|
-| `$D011` | SCROLY | Contrôle vertical scroll (bits 0-2), mode bitmap (bit 5), écran on/off (bit 4) |
-| `$D012` | RASTER | Ligne raster courante / ligne de déclenchement IRQ |
-| `$D016` | SCROLX | Contrôle horizontal scroll (bits 0-2), mode multicolor (bit 4), 38/40 colonnes (bit 3) |
-| `$D018` | VMCSB | Pointeur mémoire vidéo et jeu de caractères |
-| `$D020` | EXTCOL | Couleur du border |
-| `$D021` | BGCOL0 | Couleur du fond |
-| `$D019` | IRQFLAG | Flag d'interruption raster |
-| `$D01A` | IRQMASK | Masque d'interruption raster |
-
-### Structure du programme
-
-```
-; Point d'entrée : $C000
-;
-; Initialisation :
-;   - Désactiver les interruptions Kernal (SEI)
-;   - Configurer le VIC-II pour le mode bitmap (logo)
-;   - Charger la table sinus précalculée
-;   - Configurer la chaîne de raster IRQ
-;
-; Boucle principale (IRQ chain) :
-;   IRQ1 (ligne ~$00)  → Afficher le logo bitmap en haut
-;   IRQ2 (ligne ~$60)  → Déclencher les raster bars
-;   IRQ3 (ligne ~$F8)  → Zone du sinus scroll en mode texte
-;   Chaque IRQ programme le suivant avant de faire RTI
-```
-
-## Conventions de code
-
-### Assembleur
-- **Assembleur cible** : KickAssembler (`.asm` files) ou ACME (`.a` files)
-- **Syntaxe** : Opcodes 6502/6510 en minuscules (`lda`, `sta`, `jsr`, etc.)
-- **Labels** : snake_case pour les labels, MAJUSCULES pour les constantes
-- **Commentaires** : En français, chaque routine documentée avec son rôle
-
-### Nommage des fichiers
-```
-c64intro/
-├── main.asm          # Point d'entrée, init, boucle principale
-├── irq.asm           # Configuration et chaîne d'interruptions raster
-├── logo.asm          # Affichage du logo bitmap
-├── rasterbars.asm    # Effet raster bars (tables de couleurs)
-├── sinscroll.asm     # Sinus scroll (défilement + wave)
-├── tables.asm        # Tables précalculées (sinus, couleurs)
-├── charset.asm       # Jeu de caractères custom pour le scroll
-├── data/
-│   ├── logo.kla      # Logo au format Koala Painter (ou .prg)
-│   └── font.bin      # Police de caractères 8x8
-├── build.sh          # Script de compilation
-└── Makefile          # Build avec make
-```
-
-## Détails des effets
-
-### 1. Logo bitmap (haut de l'écran)
-
-- Mode bitmap multicolor ($D011 bit 5 = 1, $D016 bit 4 = 1)
-- Résolution : 160×200 en multicolor ou 320×200 en hi-res
-- Affiché sur les ~100 premières lignes raster
-- Basculer en mode texte avant la zone du scroll via IRQ
-
-### 2. Raster bars
-
-```asm
-; Principe : modifier $D020/$D021 à chaque ligne raster
-; pour créer des barres de couleurs animées
-;
-; Technique de stabilisation raster :
-;   - Double IRQ ou NOP-slide pour synchronisation cycle-exact
-;   - Chaque ligne raster = 63 cycles sur PAL
-;
-; Table de couleurs : séquence de valeurs 0-15 décalée
-; à chaque frame pour l'animation
-raster_colors:
-    .byte $00,$06,$0e,$03,$01,$03,$0e,$06  ; dégradé bleu
-    .byte $00,$09,$08,$07,$01,$07,$08,$09  ; dégradé marron/jaune
-```
-
-### 3. Sinus scroll
-
-```asm
-; Le texte défile de droite à gauche (hardware scroll $D016 bits 0-2)
-; Chaque caractère est positionné verticalement selon une table sinus
-;
-; Étapes par frame :
-;   1. Décrémenter le smooth scroll horizontal ($D016)
-;   2. Quand scroll = 0, décaler tous les caractères d'une colonne
-;   3. Insérer le nouveau caractère à droite
-;   4. Appliquer la table sinus pour le placement vertical
-;
-; Table sinus (256 valeurs, amplitude ~4 lignes de caractères)
-sin_table:
-    .fill 256, round(3.5 + 3.5 * sin(toRadians(i * 360 / 256)))
-```
-
-## Compilation et exécution
+All commands run from `c64intro/`. The toolchain is **KickAssembler only** (the older docs mentioning ACME are wrong — there is no ACME-compatible build).
 
 ```bash
-# Avec KickAssembler
-java -jar KickAss.jar main.asm -o intro.prg
+# Compile (entry point is main.asm, which #imports every other .asm file)
+make                    # → produces intro.prg
+java -jar KickAss.jar main.asm -o intro.prg   # equivalent
 
-# Avec ACME
-acme -f cbm -o intro.prg main.asm
+# Run in the VICE emulator
+make run                # builds then launches x64sc intro.prg
+./build.sh run          # equivalent
 
-# Exécuter avec VICE (émulateur C64)
-x64sc intro.prg
+# Clean
+make clean              # removes intro.prg, *.sym, *.vs, *.dbg
 ```
 
-## Contraintes techniques à respecter
+`KICKASS_JAR` and `VICE_BIN` env vars override the defaults in `build.sh`. `setup-c64-dev.sh` is a one-shot installer that fetches KickAssembler, installs VICE via apt/brew, installs the VS Code KickAss extensions, and writes `.vscode/{settings,tasks}.json` — only run it on a fresh dev machine.
 
-- **Timing raster** : Le C64 PAL a 312 lignes raster, 63 cycles par ligne. Les changements de couleur et de mode vidéo doivent être synchronisés au cycle près
-- **Pas de flickering** : Tous les changements visuels doivent se faire pendant les bonnes lignes raster
-- **Taille mémoire** : Le programme complet (code + données) doit tenir dans la RAM disponible (~38 Ko si Kernal désactivé)
-- **Compatibilité PAL** : Cibler le timing PAL (système européen, standard pour la scène demo C64)
+There is no test suite. "Testing" means running the `.prg` in VICE and visually verifying the three effects.
 
-## Ressources de référence
+## Architecture
 
-- Registres VIC-II : mapping complet dans `$D000-$D03F`
-- SID pour la musique : `$D400-$D41C` (optionnel, ajout possible d'un SID tune)
-- Tables sinus : précalculer pour éviter tout calcul en temps réel
-- La valeur `$01` (registre de bank switching 6510) contrôle la visibilité du Kernal/BASIC/I-O
+### Memory layout (chosen by `main.asm`)
+
+| Region | Use |
+|--------|-----|
+| `$0801` | BASIC upstart stub (`BasicUpstart2(start)`) so the user can `LOAD"…",8,1 : RUN` |
+| `$0810` | Mutable variables (`frame_flag`, `scroll_x`, `text_ptr`, `sin_phase`, `bar_offset`, `temp_x`, `scroll_buffer[41]`) |
+| `$0400`–`$07FF` | Text-mode screen RAM |
+| `$0800`–`$0FFF` | Charset copied from char ROM at boot (see `charset.asm`) |
+| `$2000`–`$3F3F` | Hi-res bitmap data for the logo (8000 bytes generated at assembly time by `logo.asm`) |
+| `$3C00`–`$3FE7` | Bitmap-mode screen RAM (foreground/background colour nibbles) |
+| `$C000`+ | Main code, IRQ handlers, all imported modules and tables |
+| `$D800`+ | Color RAM |
+
+`$01` is set to `$35` at startup (BASIC + Kernal ROM off, I/O on). `charset.asm` temporarily flips it to `$33` while copying the char ROM, then restores it.
+
+### IRQ chain (the heart of the demo)
+
+`main.asm` initialises everything, enables interrupts, and then spins on `frame_flag`. All real-time work happens inside three chained raster IRQs configured in `irq.asm`. Each handler sets the next handler's vector at `$FFFE/$FFFF` and the next raster line at `$D012` before `RTI`:
+
+1. **`irq_top` @ raster line `$30` (`IRQ1_LINE`)** — switches the VIC-II to **hi-res bitmap** (`$D011=$3B`, `$D018=$F8`, `$D016=$08`). Note this is hi-res, *not* multicolor — bit 4 of `$D016` stays 0.
+2. **`irq_mid` @ raster line `$82` (`IRQ2_LINE`)** — switches back to text mode (`$D011=$1B`, `$D018=$12`), applies the current `scroll_x` to `$D016` for smooth horizontal scrolling, then runs a tight cycle-padded loop that writes `bar_colors[bar_offset+i]` into `$D020`/`$D021` for `RASTER_BAR_LINES` (48) consecutive raster lines. The NOP/`bit $ea` padding inside `rbar_loop` is calibrated for ~63 PAL cycles per line — **do not change it without recounting cycles**.
+3. **`irq_bottom` @ raster line `$F8` (`IRQ3_LINE`)** — sets `frame_flag=1` to release the main loop, then arms `irq_top` for the next frame.
+
+The main loop reacts to `frame_flag` by calling `update_scroll`, incrementing `bar_offset` (animates the rasters), and adding 2 to `sin_phase` (animates the scroller wave).
+
+### Sinus scroller (`sinscroll.asm`)
+
+- 41-byte `scroll_buffer` holds the on-screen text. `scroll_x` counts 7→0; on underflow the buffer is shifted one column left and the next character of `scroll_text` is appended. `text_ptr` wraps to the start when it hits the trailing `0` byte.
+- `place_scroll_chars` clears 7 rows starting at `SCROLL_BASE_ROW=18`, then for each column `c` reads `sin_table[(c*4 + sin_phase) & $FF]` (range 0..6) to pick which of those 7 rows the character goes on. Address-of-row lookup uses pre-computed `row_addr_lo/hi` tables (filled at assembly time, one entry per text row).
+- The scroll text uses `.encoding "screencode_upper"`, so the `.text` literals are already screen codes — no PETSCII conversion at runtime.
+
+### Logo (`logo.asm`)
+
+The "THE PLACE" logo is **generated at assembly time**, not loaded from a file. Five `.var logo_lineN` strings of `#`/`.` describe a 5×40 character grid; the `bitmapByte(idx)` function maps each of the 8000 bitmap bytes to either `$FF` (filled cell) or `$00`. To change the logo, edit the five strings in `logo.asm` — there is no `.kla` or `.bin` asset.
+
+### Tables (`tables.asm`, `rasterbars.asm`)
+
+- `sin_table` — 256 bytes, formula `round(3 + 3*sin(i*2π/256))`, range 0..6, used for the scroller's vertical wave.
+- `bar_colors` — 256 bytes (4 colour bars × 16 entries × 4 repeats) indexed by the running `bar_offset`. Adding a new bar means appending another 16-byte block inside the `.for (var rep = 0; rep < 4; rep++)` loop and keeping the total a power of two so the `inx` wraparound stays seamless.
+
+## Conventions
+
+- Opcodes lowercase, labels `snake_case`, constants `UPPER_SNAKE_CASE` (declared via `.const`).
+- Comments are in **French**.
+- KickAssembler-specific syntax is used throughout: `.const`, `.var`, `.pc = …`, `.fill`, `.for`, `.function`, `.byte`, `.text`, `.encoding`, `#import`, `BasicUpstart2(…)`, `!label:` for local labels, `<addr` / `>addr` for low/high byte. Don't translate to ACME or DASM.
+- All sub-modules are pulled in by `main.asm` via `#import`. New `.asm` files must be added to both that `#import` list **and** the `Makefile` prerequisite line, otherwise `make` won't rebuild on changes.
+
+## Timing constraints (don't break these)
+
+- Target is **PAL** (312 raster lines, 63 cycles/line). The raster-bar busy loop in `irq_mid` is hand-tuned to consume exactly one scanline per iteration; any added/removed instruction inside `rbar_loop` will produce visible tearing or colour shifts.
+- The IRQ handlers do **not** use stable-raster (double-IRQ) tricks — there is some jitter at the mode switches. If a future change requires rock-steady transitions, that has to be added explicitly.
+- Only the bitmap region (`$2000`–`$3F3F`) and the bitmap screen RAM (`$3C00`–`$3FE7`) overlap; everything else is laid out so KickAssembler will throw a memory-overlap error if you collide regions. Trust those errors instead of `.pc`-overriding around them.
