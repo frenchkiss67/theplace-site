@@ -27,6 +27,28 @@ python -m android_builder --help
 
 ## Commandes
 
+### Interface graphique (recommandée sous Windows)
+
+```bash
+python -m android_builder gui
+```
+
+Lance une fenêtre Tkinter avec deux onglets :
+
+- **Créer un projet** — formulaire complet (nom, package, Activity, flavor,
+  SDKs, dossier de sortie via `Parcourir…`, case « Écraser »).
+- **Ajouter une Activity** — sélection d'un projet existant, bouton
+  `Détecter` qui affiche package/flavor/langage, puis création d'une
+  nouvelle Activity (avec layout XML pour les flavors Views et mise à
+  jour automatique du manifest).
+
+Une zone *Journal* en bas de la fenêtre récapitule chaque opération et
+liste les fichiers créés. Les opérations sont exécutées dans un thread
+secondaire pour ne pas bloquer l'UI.
+
+> ℹ️ Tkinter est fourni avec l'installeur Python officiel sur Windows et
+> macOS. Sous Linux, installer le paquet système `python3-tk` si besoin.
+
 ### Créer un projet (mode flags)
 
 ```bash
@@ -111,8 +133,9 @@ android_builder/
 ├── __init__.py
 ├── __main__.py          # python -m android_builder
 ├── cli.py               # argparse + sous-commandes
+├── gui.py               # interface graphique Tkinter (sous-commande `gui`)
 ├── generator.py         # ProjectConfig, generate_project, add_activity, detect_project
-├── interactive.py       # mode interactif
+├── interactive.py       # mode interactif (terminal)
 ├── utils.py             # validation, rendu de templates, helpers I/O
 └── templates/
     ├── common.py        # Gradle racine, manifest, ressources

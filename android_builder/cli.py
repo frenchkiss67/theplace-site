@@ -75,6 +75,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Dossier racine du projet Android.",
     )
 
+    # gui
+    sub.add_parser(
+        "gui",
+        help="Lancer l'interface graphique Tkinter (recommandé sous Windows).",
+    )
+
     return parser
 
 
@@ -140,6 +146,12 @@ def _cmd_add_activity(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_gui(_: argparse.Namespace) -> int:
+    # Import paresseux : Tkinter n'est chargé que si on lance la GUI.
+    from android_builder.gui import launch
+    return launch()
+
+
 def _cmd_info(args: argparse.Namespace) -> int:
     try:
         info = detect_project(args.project)
@@ -158,6 +170,7 @@ COMMANDS = {
     "list-flavors": _cmd_list_flavors,
     "add-activity": _cmd_add_activity,
     "info": _cmd_info,
+    "gui": _cmd_gui,
 }
 
 
