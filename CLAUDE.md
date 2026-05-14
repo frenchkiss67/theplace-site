@@ -2,8 +2,10 @@
 
 Ce dépôt regroupe deux projets indépendants :
 
-1. **`receipt-scanner/`** — Application Android (Kotlin / Jetpack Compose)
-   pour scanner les tickets de caisse et les archiver en PDF.
+1. **`receipt-scanner/`** — Application **Kotlin Multiplatform / Compose
+   Multiplatform** pour scanner les tickets de caisse et les archiver en
+   PDF. Une seule cible active aujourd'hui (`androidTarget`) ; les cibles
+   iOS sont prêtes à être activées sans restructurer le code.
 2. **`c64intro/`** — Intro/demo style Commodore 64 en assembleur 6502/6510
    (KickAssembler).
 
@@ -21,15 +23,16 @@ partageables et exportables.
 
 | Couche                | Choix                                                              |
 |-----------------------|--------------------------------------------------------------------|
-| Langage               | Kotlin 1.9 (JVM target 17)                                         |
-| UI                    | Jetpack Compose + Material 3                                       |
-| Architecture          | MVVM (ViewModel + StateFlow + Repository)                          |
-| Scan/OCR de documents | **ML Kit Document Scanner** (Google Play Services)                 |
-| Persistance           | Room 2.6 (métadonnées) + filesystem privé pour les PDFs            |
-| Partage inter-app     | `FileProvider`                                                     |
+| Langage               | Kotlin **2.0.21** (Multiplatform, JVM target 17)                   |
+| UI                    | **Compose Multiplatform 1.7.0** + Material 3 (dynamic color Android 12+ injecté) |
+| Architecture          | MVVM (ViewModel KMP + StateFlow + Repository commun)               |
+| Scan/OCR de documents | **ML Kit Document Scanner** (Google Play Services, `androidMain`)  |
+| Persistance           | Room 2.6 (Android-only, derrière une interface commune) + filesystem privé |
+| Partage inter-app     | `FileProvider` côté Android                                        |
 | Build                 | Android Gradle Plugin 8.5, Gradle 8.7, KSP (Room)                  |
 | `minSdk`              | 24 (Android 7.0)                                                   |
 | `compileSdk`/`target` | 34                                                                 |
+| Cibles                | `androidTarget()` active ; `iosX64/iosArm64/iosSimulatorArm64` prêtes |
 
 ### Pourquoi ML Kit Document Scanner
 
@@ -45,29 +48,34 @@ partageables et exportables.
 
 ```
 receipt-scanner/
-├── build.gradle.kts                  # Plugins niveau projet
-├── settings.gradle.kts
+├── build.gradle.kts                  # Plugins racine (KMP, CMP, AGP, KSP)
+├── settings.gradle.kts               # includes :composeApp
 ├── gradle.properties
 ├── gradle/wrapper/                   # gradle-wrapper.properties (8.7)
 ├── README.md
-└── app/
-    ├── build.gradle.kts              # Compose BOM, Room, ML Kit
+├── design.md                         # Design doc + ADRs (1..8)
+└── composeApp/
+    ├── build.gradle.kts              # KMP : androidTarget() + iOS commenté
     ├── proguard-rules.pro
-    └── src/main/
-        ├── AndroidManifest.xml       # Activity + FileProvider
-        ├── java/com/theplace/receiptscanner/
-        │   ├── MainActivity.kt
-        │   ├── ReceiptScannerApp.kt
-        │   ├── data/                 # Receipt, Dao, Database, Repository
-        │   ├── scanner/              # Intégration ML Kit
-        │   ├── util/                 # PdfStorage, PdfIntents, Formatting
-        │   ├── ui/                   # ReceiptListScreen + theme/
-        │   └── viewmodel/            # ReceiptViewModel
-        └── res/
-            ├── values/               # strings (FR), themes, colors
-            ├── xml/                  # file_paths, backup rules
-            ├── drawable/             # ic_launcher_foreground
-            └── mipmap-anydpi-v26/    # ic_launcher (adaptive)
+    └── src/
+        ├── commonMain/
+        │   ├── kotlin/com/theplace/receiptscanner/
+        │   │   ├── App.kt                            # @Composable entry
+        │   │   ├── data/                             # Receipt + ReceiptRepository (interface)
+        │   │   ├── platform/                         # expect : scanner, PdfActions, PlatformScanResult
+        │   │   ├── ui/                               # ReceiptListScreen + theme/
+        │   │   ├── util/                             # Formatting, Clock (kotlinx-datetime)
+        │   │   └── viewmodel/                        # ReceiptViewModel (lifecycle KMP)
+        │   └── composeResources/values/strings.xml   # Strings UI (Compose Resources)
+        └── androidMain/
+            ├── AndroidManifest.xml                   # Activity + FileProvider
+            ├── kotlin/com/theplace/receiptscanner/
+            │   ├── MainActivity.kt
+            │   ├── ReceiptScannerApp.kt              # Application + ServiceLocator
+            │   ├── ServiceLocator.kt
+            │   ├── data/                             # ReceiptEntity + DAO + DB Room + AndroidReceiptRepository
+            │   └── platform/                         # actual ML Kit + AndroidPdfActions + PdfStorage
+            └── res/                                  # Manifest strings, themes, file_paths, backup, icône
 ```
 
 ### Conventions de code
@@ -76,6 +84,9 @@ receipt-scanner/
   pour les états (`ScanOutcome`), `StateFlow` pour exposer la liste à l'UI.
 - **Compose stateless** : `ReceiptListScreen` reçoit l'état et les
   callbacks ; le ViewModel détient la source de vérité.
+- **commonMain pur** : aucune annotation/import Android dans
+  `commonMain/`. Tout ce qui dépend de l'OS passe par `expect/actual`
+  (scanner, PDF) ou par une interface plateforme (Repository, PdfActions).
 - **Commentaires en français**, courts, uniquement quand le « pourquoi »
   n'est pas évident depuis le code.
 - **Pas de permissions runtime** déclarées : le scanner ML Kit gère la
@@ -84,17 +95,20 @@ receipt-scanner/
 ### Flux de données
 
 ```
-[Utilisateur] → FAB "Scanner un ticket"
+[Utilisateur] → FAB "Scanner un ticket"                            (commonMain UI)
         ↓
-[DocumentScannerLauncher.launch()]
+[DocumentScannerLauncher.launch()]                                 (expect)
         ↓
-GmsDocumentScanning → IntentSender → ActivityResult (Compose)
+Android actual : GmsDocumentScanning → IntentSender → ActivityResult
         ↓
-[ScanOutcome.Success(pdf)]
+[ScanOutcome.Success(PlatformScanResult)]                          (commonMain)
         ↓
-[ReceiptViewModel.saveScan]
-   - PdfStorage.importFrom(pdf.uri, fileName)  → copie vers filesDir/receipts/
-   - ReceiptRepository.add(Receipt(...))       → INSERT Room
+[ReceiptViewModel.saveScan]                                        (commonMain)
+        ↓
+[ReceiptRepository.addFromScan]                                    (interface)
+   Android impl :
+     - PdfStorage.importFrom(scan.uri, fileName)  → filesDir/receipts/
+     - dao.insert(ReceiptEntity)                  → Room
         ↓
 [Flow<List<Receipt>>] observé par l'UI → recomposition de la liste.
 ```
@@ -115,22 +129,29 @@ GmsDocumentScanning → IntentSender → ActivityResult (Compose)
 cd receipt-scanner
 gradle wrapper --gradle-version 8.7
 
-# Build debug
-./gradlew :app:assembleDebug
+# Build debug Android
+./gradlew :composeApp:assembleDebug
 
 # Installation sur appareil/émulateur connecté
-./gradlew :app:installDebug
+./gradlew :composeApp:installDebug
 
-# Tests unitaires
-./gradlew :app:testDebugUnitTest
+# Tests JVM commonMain (à étoffer)
+./gradlew :composeApp:testDebugUnitTest
 ```
 
 ### Points d'attention
 
-- Les versions Compose suivent le **Compose BOM** (`2024.09.02`) — ne pas
-  épingler les versions individuelles des libs Compose.
+- **CMP 1.7.0 + Kotlin 2.0.21** : le plugin Compose compiler est
+  `org.jetbrains.kotlin.plugin.compose` (séparé depuis Kotlin 2.0).
 - ML Kit Document Scanner est en **`16.0.0-beta1`** : vérifier la dispo
   d'une release stable lors d'une mise à jour des dépendances.
+- Compose Resources expose les strings via `Res.string.*` ; le package
+  est configuré dans `composeApp/build.gradle.kts`
+  (`packageOfResClass = "com.theplace.receiptscanner.resources"`).
+- Pour activer iOS : décommenter les 3 cibles dans
+  `composeApp/build.gradle.kts`, créer `iosMain/` avec les `actual`
+  (VisionKit pour le scan, `UIActivityViewController` pour le partage,
+  SQLDelight pour la persistance), compiler sur macOS.
 - L'app cible un usage personnel : pas d'OCR du texte des tickets, pas de
   cloud sync. Toute évolution dans ces directions doit passer par un
   design explicite (permissions, vie privée, sécurité).

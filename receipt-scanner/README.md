@@ -1,94 +1,114 @@
-# Tickets de caisse — Scanner Android
+# Tickets de caisse — Scanner Android (Compose Multiplatform)
 
-Application Android pour scanner les tickets de caisse au format PDF et les
-archiver localement sur l'appareil.
+Application pour scanner les tickets de caisse au format PDF et les
+archiver localement. Conçue comme un module **Kotlin / Compose Multiplatform**
+avec une cible Android active ; les cibles iOS sont prêtes à être activées
+sans restructurer le code.
 
 ## Stack technique
 
-- **Kotlin** + **Jetpack Compose** (Material 3)
-- **ML Kit Document Scanner** (`play-services-mlkit-document-scanner`) :
-  détection automatique des bords, correction de perspective, ajustement
-  contraste/luminosité, multi-pages, export PDF natif. Le module tourne dans
-  Google Play Services — pas de poids ajouté à l'APK et permission caméra
-  gérée par le service.
-- **Room** : persistance des métadonnées (nom, date, taille, nombre de pages)
-- **AndroidX Activity Result API** : `StartIntentSenderForResult` pour lancer
-  le scanner.
-- **FileProvider** : partage/ouverture sécurisés des PDFs vers d'autres apps.
-
-## Fonctionnalités
-
-- Scan d'un ou plusieurs tickets en une session (jusqu'à 10 pages par PDF).
-- Archivage automatique dans `filesDir/receipts/` — données privées à l'app
-  et sauvegardées par Android Backup.
-- Liste chronologique avec date, taille et nombre de pages.
-- Renommer, ouvrir dans un viewer PDF, partager (e-mail, drive, etc.),
-  supprimer.
+- **Kotlin Multiplatform** (Kotlin 2.0.21)
+- **Compose Multiplatform 1.7.0** — UI partagée (`commonMain`)
+- **Material 3** (dynamic color Android 12+ via injection plateforme)
+- **AndroidX Lifecycle multiplatforme** (ViewModel + Compose)
+- **kotlinx-datetime / kotlinx-coroutines** — partagés
+- **Room 2.6.1** — persistance Android uniquement (KSP)
+- **ML Kit Document Scanner** (`play-services-mlkit-document-scanner:16.0.0-beta1`) —
+  Android uniquement ; détection bords, perspective, contraste, multi-pages,
+  export PDF natif.
+- **FileProvider** — partage des PDFs vers d'autres apps.
 
 ## Structure
 
 ```
 receipt-scanner/
-├── build.gradle.kts                 # Plugins de niveau projet
-├── settings.gradle.kts
+├── build.gradle.kts                  # Plugins racine (KMP, CMP, AGP, KSP)
+├── settings.gradle.kts               # includes :composeApp
 ├── gradle.properties
-├── gradle/wrapper/                  # Wrapper Gradle
-└── app/
-    ├── build.gradle.kts             # Module application
-    └── src/main/
-        ├── AndroidManifest.xml
-        ├── java/com/theplace/receiptscanner/
-        │   ├── MainActivity.kt            # Point d'entrée Compose
-        │   ├── ReceiptScannerApp.kt       # Application
-        │   ├── data/                      # Entité Room, DAO, DB, Repository
-        │   ├── scanner/                   # Intégration ML Kit
-        │   ├── util/                      # PDF storage, intents, formatters
-        │   ├── ui/                        # Écrans Compose + thème
-        │   └── viewmodel/                 # ReceiptViewModel
-        └── res/
-            ├── values/                    # strings, themes, colors
-            ├── xml/                       # file_paths, backup rules
-            ├── drawable/                  # icône
-            └── mipmap-*/                  # launcher
+├── gradle/wrapper/
+└── composeApp/
+    ├── build.gradle.kts              # Module KMP : androidTarget()
+    ├── proguard-rules.pro
+    └── src/
+        ├── commonMain/
+        │   ├── kotlin/com/theplace/receiptscanner/
+        │   │   ├── App.kt            # Composable entry partagé
+        │   │   ├── data/             # Receipt (modèle), ReceiptRepository (interface)
+        │   │   ├── platform/         # expect : scanner, PdfActions, PlatformScanResult
+        │   │   ├── ui/               # ReceiptListScreen + theme/
+        │   │   ├── util/             # Formatting, Clock (kotlinx-datetime)
+        │   │   └── viewmodel/        # ReceiptViewModel
+        │   └── composeResources/values/strings.xml
+        └── androidMain/
+            ├── AndroidManifest.xml
+            ├── kotlin/com/theplace/receiptscanner/
+            │   ├── MainActivity.kt
+            │   ├── ReceiptScannerApp.kt    # Application + ServiceLocator
+            │   ├── ServiceLocator.kt
+            │   ├── data/                   # ReceiptEntity + DAO + DB Room + AndroidReceiptRepository
+            │   └── platform/               # actual scanner ML Kit + AndroidPdfActions + PdfStorage
+            └── res/                        # Manifest, themes, file_paths, backup, icône
 ```
+
+## Frontière `expect` / `actual`
+
+| `expect`                                       | `actual` Android                     | `actual` iOS (futur) |
+|------------------------------------------------|--------------------------------------|----------------------|
+| `class PlatformScanResult`                     | `(Uri, pageCount)`                   | `(NSURL, pageCount)` |
+| `rememberDocumentScannerLauncher`              | ML Kit Document Scanner              | `VNDocumentCameraViewController` |
+| `interface PdfActions`                         | `AndroidPdfActions` (Intent+FileProvider) | `UIActivityViewController` |
+| `interface ReceiptRepository`                  | Room + `PdfStorage` (filesDir)       | SQLDelight + NSFileManager |
+
+Le code `commonMain` (UI Compose, ViewModel, modèle, formatage) compilera
+tel quel pour iOS dès que les cibles seront activées et les `actual`
+fournis.
+
+## Activer les cibles iOS
+
+Dans `composeApp/build.gradle.kts`, décommenter :
+
+```kotlin
+iosX64()
+iosArm64()
+iosSimulatorArm64()
+```
+
+Puis créer `composeApp/src/iosMain/kotlin/.../platform/` avec les `actual`
+correspondants. La compilation des cibles iOS nécessite macOS + Xcode.
 
 ## Compilation
 
-Le wrapper Gradle n'est pas livré dans le dépôt — initialiser avant la première
-build :
+Le wrapper Gradle n'est pas livré dans le dépôt — initialiser avant la
+première build :
 
 ```bash
 cd receipt-scanner
 gradle wrapper --gradle-version 8.7
-./gradlew :app:assembleDebug
+./gradlew :composeApp:assembleDebug
 ```
 
-Installation sur un appareil/émulateur :
+Installation sur un appareil/émulateur Android :
 
 ```bash
-./gradlew :app:installDebug
+./gradlew :composeApp:installDebug
 ```
 
 ## Configuration minimale
 
 - `minSdk` 24 (Android 7.0)
 - `targetSdk`/`compileSdk` 34
-- Google Play Services à jour sur l'appareil (le module Document Scanner est
-  téléchargé à la demande la première fois).
+- Google Play Services à jour sur l'appareil (Document Scanner téléchargé
+  à la demande).
 
 ## Permissions
 
-Aucune permission runtime n'est déclarée : l'API ML Kit Document Scanner
-utilise sa propre activité système et gère la caméra hors-process. Seul
-`<uses-feature android:name="android.hardware.camera">` est annoncé pour le
-Play Store.
+Aucune permission runtime. ML Kit Document Scanner utilise sa propre
+activité système et gère la caméra hors-process. `<uses-feature
+android:name="android.hardware.camera">` est annoncé au Play Store.
 
 ## Stockage et confidentialité
 
-- Les PDFs vivent dans `filesDir/receipts/` — privés à l'app, supprimés à
-  la désinstallation.
-- La base Room (`receipts.db`) ne contient que les métadonnées.
-- Le partage vers d'autres apps passe par `FileProvider` (URI temporaire,
-  sans copie).
-- Les règles de sauvegarde (`backup_rules.xml`, `data_extraction_rules.xml`)
-  incluent les PDFs et la base dans Android Backup et le transfert d'appareil.
+- PDFs dans `context.filesDir/receipts/` — privés, supprimés à la
+  désinstallation, inclus dans Android Backup et device-transfer.
+- Base Room (`receipts.db`) — métadonnées uniquement.
+- Partage via `FileProvider` (URI temporaire, sans copie).

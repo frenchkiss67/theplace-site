@@ -1,0 +1,70 @@
+package com.theplace.receiptscanner
+
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.theplace.receiptscanner.data.ReceiptRepository
+import com.theplace.receiptscanner.platform.PdfActions
+import com.theplace.receiptscanner.viewmodel.ReceiptViewModel
+
+class MainActivity : ComponentActivity() {
+
+    private val viewModel: ReceiptViewModel by viewModels {
+        val services = (application as ReceiptScannerApp).services
+        ReceiptViewModelFactory(services.repository, services.pdfActions)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            val dynamicScheme = rememberDynamicColorScheme()
+            App(
+                viewModel = viewModel,
+                dynamicColorScheme = dynamicScheme,
+                onScanCancelled = {
+                    Toast.makeText(this, R.string.scan_cancelled, Toast.LENGTH_SHORT).show()
+                },
+                onScanFailure = { reason ->
+                    Toast.makeText(
+                        this,
+                        getString(R.string.scan_error, reason),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun rememberDynamicColorScheme(): ColorScheme? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    val context = LocalContext.current
+    val dark = isSystemInDarkTheme()
+    return remember(dark) {
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    }
+}
+
+private class ReceiptViewModelFactory(
+    private val repository: ReceiptRepository,
+    private val pdfActions: PdfActions,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        ReceiptViewModel(repository, pdfActions) as T
+}

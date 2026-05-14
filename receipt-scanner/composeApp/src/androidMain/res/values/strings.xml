@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Référencé par AndroidManifest (label, icône, activity). -->
+    <string name="app_name">Tickets de caisse</string>
+
+    <!-- Messages affichés via Toast (hors Compose). -->
+    <string name="scan_cancelled">Scan annulé</string>
+    <string name="scan_error">Impossible de démarrer le scanner : %1$s</string>
+</resources>

@@ -192,83 +192,140 @@ téléchargé, etc.) → toast d'erreur lisible en français incluant le motif.
 
 ## 5. Architecture logicielle
 
-### 5.1 Vue d'ensemble
+### 5.0 Vue Kotlin Multiplatform
+
+Le projet est un module Kotlin Multiplatform (`composeApp`) avec une seule
+cible active (`androidTarget()`) en v1, prête à accueillir `iosX64`,
+`iosArm64` et `iosSimulatorArm64`.
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  UI Layer (Jetpack Compose, stateless)                │
-│  ─ MainActivity / ReceiptListScreen                   │
-│  ─ Dialogs (rename, delete)                           │
-└───────────────────────────────────────────────────────┘
+composeApp/
+├── src/commonMain/   ← UI Compose, ViewModel, modèle, util, expect
+└── src/androidMain/  ← Room, ML Kit, FileProvider, actual, MainActivity
+```
+
+La frontière `expect/actual` couvre les trois points qui dépendent du
+système d'exploitation :
+
+| `expect`                                 | `actual` Android                     | `actual` iOS (futur)                |
+|------------------------------------------|--------------------------------------|-------------------------------------|
+| `class PlatformScanResult`               | `(Uri, pageCount)`                   | `(NSURL, pageCount)`                |
+| `@Composable rememberDocumentScannerLauncher` | ML Kit Document Scanner          | `VNDocumentCameraViewController`    |
+| `interface PdfActions`                   | Intent VIEW/SEND + FileProvider      | `UIActivityViewController`          |
+| `interface ReceiptRepository`            | Room + `PdfStorage` (filesDir)       | SQLDelight + `NSFileManager`        |
+
+### 5.1 Vue d'ensemble (couches)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  commonMain — UI (Compose Multiplatform, stateless)        │
+│  ─ App.kt / ReceiptListScreen                              │
+│  ─ Dialogues (rename, delete)                              │
+└────────────────────────────────────────────────────────────┘
                     │ state ▲      events ▼
-┌───────────────────────────────────────────────────────┐
-│  Presentation (ViewModel)                             │
-│  ─ ReceiptViewModel : StateFlow<List<Receipt>>        │
-│    saveScan / rename / delete                         │
-└───────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  commonMain — Présentation (ViewModel KMP)                 │
+│  ─ ReceiptViewModel : StateFlow<List<Receipt>>             │
+│    saveScan / rename / delete / openPdf / sharePdf         │
+└────────────────────────────────────────────────────────────┘
                     │
                     ▼
-┌───────────────────────────────────────────────────────┐
-│  Domain / Repository                                  │
-│  ─ ReceiptRepository (Dao + PdfStorage)               │
-└───────────────────────────────────────────────────────┘
-        │                                  │
-        ▼                                  ▼
-┌────────────────────┐         ┌──────────────────────┐
-│  Room              │         │  Filesystem          │
-│  receipts.db       │         │  filesDir/receipts/  │
-└────────────────────┘         └──────────────────────┘
-
-┌───────────────────────────────────────────────────────┐
-│  Plateforme                                           │
-│  ─ ML Kit Document Scanner (Play Services)            │
-│  ─ FileProvider (partage inter-app)                   │
-└───────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  commonMain — Domain (interfaces)                          │
+│  ─ ReceiptRepository, PdfActions, DocumentScannerLauncher  │
+└────────────────────────────────────────────────────────────┘
+                    │
+                    ▼ (actual)
+┌────────────────────────┐          ┌─────────────────────────┐
+│  androidMain — Données │          │  androidMain — Plateforme│
+│  ─ Room (entity, DAO,  │          │  ─ ML Kit Scanner       │
+│    DB, repo impl)      │          │  ─ AndroidPdfActions    │
+│  ─ PdfStorage          │          │  ─ FileProvider          │
+└────────────────────────┘          └─────────────────────────┘
 ```
 
 ### 5.2 Mapping fichiers ↔ responsabilités
 
-| Couche       | Fichier                                | Rôle                                                          |
-|--------------|----------------------------------------|---------------------------------------------------------------|
-| UI           | `MainActivity.kt`                      | Hôte Compose, wiring scanner + ViewModel + écran.             |
-| UI           | `ui/ReceiptListScreen.kt`              | Liste, empty state, cartes, dialogues.                        |
-| UI           | `ui/theme/*`                           | Material 3, dynamic color.                                    |
-| Présentation | `viewmodel/ReceiptViewModel.kt`        | Source de vérité, expose `StateFlow`, orchestre les actions.  |
-| Scanner      | `scanner/DocumentScanner.kt`           | Wrap ML Kit + ActivityResult API ; `ScanOutcome` sealed.      |
-| Domain       | `data/ReceiptRepository.kt`            | Compose DAO + PdfStorage.                                     |
-| Données      | `data/Receipt.kt`                      | Entité Room.                                                  |
-| Données      | `data/ReceiptDao.kt`                   | Requêtes (observe, insert, update, delete).                   |
-| Données      | `data/ReceiptDatabase.kt`              | Singleton Room.                                               |
-| Utilitaire   | `util/PdfStorage.kt`                   | I/O des fichiers PDF, génération de nom, URI FileProvider.    |
-| Utilitaire   | `util/PdfIntents.kt`                   | `openPdf`, `sharePdf`.                                        |
-| Utilitaire   | `util/Formatting.kt`                   | Date / taille pour l'affichage.                               |
+#### `commonMain`
+
+| Fichier                                              | Rôle                                                |
+|------------------------------------------------------|-----------------------------------------------------|
+| `App.kt`                                             | Composable entry partagé, wiring scanner→VM→écran. |
+| `ui/ReceiptListScreen.kt`                            | Liste, empty state, cartes, dialogues.              |
+| `ui/theme/*`                                         | Material 3 (dynamic color injecté par plateforme).  |
+| `viewmodel/ReceiptViewModel.kt`                      | StateFlow, orchestre Repository + PdfActions.       |
+| `data/Receipt.kt`                                    | Modèle de domaine (aucune annotation plateforme).   |
+| `data/ReceiptRepository.kt`                          | Interface commune.                                  |
+| `platform/DocumentScanner.kt`                        | `expect` : scanner + `ScanOutcome`.                 |
+| `platform/PdfActions.kt`                             | Interface ouvrir/partager.                          |
+| `util/Formatting.kt`, `util/Clock.kt`                | Date/taille KMP (kotlinx-datetime).                 |
+| `composeResources/values/strings.xml`                | Strings UI Compose Resources.                       |
+
+#### `androidMain`
+
+| Fichier                                              | Rôle                                                |
+|------------------------------------------------------|-----------------------------------------------------|
+| `MainActivity.kt`                                    | Hôte Compose, injecte dynamic color + toasts.       |
+| `ReceiptScannerApp.kt` + `ServiceLocator.kt`         | DI minimale (un repo, un PdfActions).               |
+| `data/ReceiptEntity.kt` + mappers                    | Entité Room séparée du modèle commun.               |
+| `data/ReceiptDao.kt`, `ReceiptDatabase.kt`           | Room.                                               |
+| `data/AndroidReceiptRepository.kt`                   | Implémente `ReceiptRepository` (Room + PdfStorage). |
+| `platform/DocumentScanner.android.kt`                | `actual` ML Kit + `PlatformScanResult(uri, pages)`. |
+| `platform/AndroidPdfActions.kt`                      | Intent VIEW/SEND via FileProvider.                  |
+| `platform/PdfStorage.kt`                             | I/O `filesDir/receipts/`, génération de nom, URI.   |
+| `res/values/strings.xml`                             | `app_name` (manifest) + messages Toast Android.     |
+| `res/{xml,values,mipmap,drawable}/...`               | Ressources plateforme (icône, file_paths, backup).  |
 
 ### 5.3 Principes
 
 - **UI stateless** : pas d'`androidx.compose.runtime.mutableStateOf` métier
   dans les composables (sauf dialogues éphémères) — la source de vérité
   est le `StateFlow` du ViewModel.
-- **Pas d'injection de dépendances** (Hilt/Koin) en v1 : `Repository.from(context)`
-  factory suffit, l'app a un seul ViewModel.
+- **DI minimale** : `ServiceLocator` côté Android, branché depuis
+  `Application`. Pas de Hilt/Koin en v1.
 - **Coroutines** : tout I/O (`saveScan`, `rename`, `delete`) tourne dans
   `viewModelScope`, jamais sur le main thread.
-- **Compose BOM** unique source de vérité pour les versions Compose.
+- **Versions Compose** : Compose Multiplatform 1.7.0 pour `compose.*` ;
+  les libs Compose Android (`androidx.activity:activity-compose`) restent
+  dans `androidMain` uniquement.
+- **`expect/actual` minimal** : on n'expose en `expect` que ce qui ne peut
+  pas être Kotlin pur (scanner, partage, persistance plateforme).
+- **Aucune annotation Android dans `commonMain`** — le modèle de domaine
+  est portable, l'entité Room est en `androidMain` avec mappers.
 
 ---
 
 ## 6. Modèle de données
 
-### 6.1 Entité Room
+### 6.1 Modèle de domaine (commonMain) et entité Room (androidMain)
+
+Le modèle de domaine partagé est une `data class` Kotlin pure :
 
 ```kotlin
-@Entity(tableName = "receipts")
+// commonMain
 data class Receipt(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val id: Long = 0,
     val name: String,        // libellé éditable, par défaut "Ticket du <date>"
     val fileName: String,    // ticket_YYYYMMDD_HHmmss.pdf
     val pageCount: Int,      // pages dans le PDF (1..10)
     val sizeBytes: Long,     // taille du PDF sur disque
     val createdAt: Long,     // ms epoch
+)
+```
+
+L'entité Room reste cantonnée à `androidMain` avec mappers `toDomain()` /
+`toEntity()` :
+
+```kotlin
+// androidMain
+@Entity(tableName = "receipts")
+internal data class ReceiptEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val fileName: String,
+    val pageCount: Int,
+    val sizeBytes: Long,
+    val createdAt: Long,
 )
 ```
 
@@ -344,9 +401,9 @@ Canny, transformation perspective, binarisation, export PDF via PdfDocument).
 
 ### ADR-2 — Compose plutôt que XML/Fragments
 
-**Décision** : 100% Jetpack Compose.
-**Raisons** : un seul écran + dialogues, Material 3 natif, dynamic color
-gratuit, moins de boilerplate.
+**Décision** : 100% Compose. **Supersédé partiellement par ADR-8** :
+on est passé à **Compose Multiplatform** ; la décision « pas de XML »
+reste valide.
 
 ### ADR-3 — Room + filesystem séparés plutôt que BLOB en base
 
@@ -367,10 +424,13 @@ dépendances, anticipé).
 
 ### ADR-5 — Pas de DI (Hilt/Koin) en v1
 
-**Décision** : factory `ReceiptRepository.from(context)`, `ViewModel` lit
-le repo via `Application`.
-**Raisons** : surface de dépendances trop petite pour justifier le coût
-de Hilt. Réévaluer si on ajoute un OCR ou un sync cloud.
+**Décision** : un `ServiceLocator` côté `androidMain` construit `Repository`
++ `PdfActions` ; l'`Application` les expose, la `MainActivity` les
+injecte au ViewModel via une `ViewModelProvider.Factory`.
+**Raisons** : surface de dépendances trop petite pour justifier Hilt
+(Hilt ne fonctionne d'ailleurs qu'en Android). Si on active iOS, Koin
+multiplatforme deviendra le candidat naturel. Réévaluer si on ajoute un
+OCR ou un sync cloud.
 
 ### ADR-6 — Stockage privé interne plutôt que MediaStore/Documents
 
@@ -423,10 +483,8 @@ pouvoir relire la décision si un objectif iOS apparaît.
   Material 3 non first-class. Non justifié pour une app perso Android-only.
 
 **Conséquences** :
-- ADR-2 reste valide pour la v1.
-- **Trigger de réévaluation** : objectif iOS confirmé → réétudier
-  Compose Multiplatform en priorité (réutilise déjà Kotlin + Room + nos
-  modèles), avec pipeline scanner dédoublé (ML Kit Android / VisionKit iOS).
+- **Trigger de réévaluation activé** : ADR-8 prend acte de la décision
+  d'aller vers Compose Multiplatform.
 - Compose Multiplatform doit être réévalué annuellement (suivre les
   releases JetBrains).
 
@@ -435,6 +493,47 @@ pouvoir relire la décision si un objectif iOS apparaît.
 - JetBrains — [Compose Multiplatform 1.8.0 : iOS Stable](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/).
 - Volpis — [Is Kotlin Multiplatform production-ready in 2026?](https://volpis.com/blog/is-kotlin-multiplatform-production-ready/).
 - DEV — [Android UI: Jetpack Compose vs. Views — The Definitive Shift](https://dev.to/trinadhthatakula/android-ui-jetpack-compose-vs-views-the-definitive-shift-and-what-it-means-for-you-3gi0).
+
+### ADR-8 — Migration vers Compose Multiplatform (cible Android, iOS prête)
+
+**Contexte** : ADR-7 identifie Compose Multiplatform comme l'option à
+réétudier dès qu'un objectif iOS est plausible. Nous décidons d'engager
+la migration tant que l'app est petite — réorganiser plus tard coûterait
+plus cher.
+
+**Décision** :
+1. Le module `:app` devient `:composeApp` avec le plugin
+   `org.jetbrains.kotlin.multiplatform`.
+2. Une seule cible active : `androidTarget()`. Les cibles `iosX64()`,
+   `iosArm64()`, `iosSimulatorArm64()` sont **commentées dans le Gradle**
+   et activables sans changement structurel.
+3. UI Compose (`compose.runtime`, `compose.material3`, etc.), ViewModel
+   (`lifecycle-viewmodel` KMP), modèle, formatage et resources passent
+   en `commonMain`.
+4. ML Kit, Room, FileProvider, `PdfStorage` et `MainActivity` restent
+   en `androidMain`.
+5. Frontière `expect/actual` minimale :
+    - `expect class PlatformScanResult` (uri+pages côté Android).
+    - `@Composable expect fun rememberDocumentScannerLauncher`.
+    - `interface PdfActions` (Android : Intent + FileProvider).
+    - `interface ReceiptRepository` (Android : Room + PdfStorage).
+
+**Conséquences** :
+- ✅ Le code partageable (UI, ViewModel, modèle, utils) est désormais
+  prêt à compiler pour iOS sans rewrite.
+- ✅ L'entité Room reste cantonnée à `androidMain` : `Receipt` (domaine)
+  n'a aucune annotation plateforme, ce qui ouvre la porte à SQLDelight
+  ou Room KMP plus tard.
+- ⚠️ Compose Resources remplace `R.string.*` côté Compose. Quelques
+  strings strictement Android (manifest, Toasts) restent dans
+  `androidMain/res/values/strings.xml`.
+- ⚠️ Le dynamic color Android 12+ est désormais **injecté** depuis
+  `MainActivity` (les APIs `dynamicLightColorScheme`/`dynamicDarkColorScheme`
+  sont Android-only ; `commonMain` reçoit un `ColorScheme?` optionnel).
+- ⚠️ Activer iOS demandera : décommenter les 3 cibles, créer `iosMain`
+  avec les `actual` pour scanner (`VNDocumentCameraViewController`),
+  PdfActions (`UIActivityViewController`), Repository (SQLDelight +
+  `NSFileManager`), et compiler sur macOS.
 
 ---
 
