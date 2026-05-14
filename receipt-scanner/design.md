@@ -382,6 +382,60 @@ de Hilt. Réévaluer si on ajoute un OCR ou un sync cloud.
 **Limite** : à la désinstallation, les PDFs sont perdus si l'utilisateur
 n'a pas utilisé « Partager » pour les exporter. Documenté dans le README.
 
+### ADR-7 — Comparaison élargie des frameworks UI (Compose vs Views vs CMP vs Flutter vs RN)
+
+**Contexte** : ADR-2 retient Compose en quelques lignes. Cet ADR documente
+la comparaison complète face aux alternatives multiplateformes, afin de
+pouvoir relire la décision si un objectif iOS apparaît.
+
+**Synthèse** (état mai 2026) :
+
+| Critère                                       | Compose | XML Views | Compose MP | Flutter | React Native |
+|-----------------------------------------------|:-------:|:---------:|:----------:|:-------:|:------------:|
+| Recommandé par Google pour nouvelles apps     | ✅      | ⚠️ legacy | ✅         | —       | —            |
+| Accès direct ML Kit Document Scanner          | ✅      | ✅        | ⚠️ Android| ⚠️ plugin| ⚠️ plugin   |
+| Material 3 + dynamic color first-class        | ✅      | ⚠️        | ⚠️         | ⚠️      | ⚠️           |
+| Stack persistance Room first-class            | ✅      | ✅        | ✅         | — drift | — divers     |
+| Multiplateforme Android+iOS                   | —       | —         | ✅         | ✅      | ✅           |
+| Adapté à `receipt-scanner` (Android-only)     | **✅**  | —         | —          | —       | —            |
+
+**Décision** : conserver **Jetpack Compose** (ADR-2 confirmé).
+
+**Détail par alternative** :
+
+- **XML Views + Fragments** : non déprécié mais positionné comme support
+  legacy par Google. Aucun bénéfice pour une nouvelle app sans contrainte SDK.
+- **Compose Multiplatform** : **stable iOS depuis la 1.8.0 (mai 2025)**,
+  utilisé en prod par Netflix, McDonald's, Cash App. Sweet spot =
+  formulaires / listes / écrans détail, soit exactement
+  `receipt-scanner`. Coût pour ce projet :
+    - Pas de composants iOS natifs (look Material par défaut).
+    - ML Kit Document Scanner est **Android-only** : côté iOS il faudrait
+      basculer sur `VNDocumentCameraViewController` (VisionKit). Le
+      partage de code utile chute hors UI pure.
+    - Pertinent uniquement si une **v2 iOS** entre dans le scope.
+- **Flutter** : scan via plugins tiers (`cunning_document_scanner`), PDF
+  via libs tierces (`pdf`, `printing`), persistance via `sqflite`/`drift`,
+  Material 3 dynamic color moins fin qu'en natif. Justifié uniquement si
+  Android + iOS dès la v1 avec une équipe Dart.
+- **React Native** : New Architecture (Fabric/TurboModules) par défaut
+  désormais, mais même problème — plugins ML Kit/PDF/persistance tiers,
+  Material 3 non first-class. Non justifié pour une app perso Android-only.
+
+**Conséquences** :
+- ADR-2 reste valide pour la v1.
+- **Trigger de réévaluation** : objectif iOS confirmé → réétudier
+  Compose Multiplatform en priorité (réutilise déjà Kotlin + Room + nos
+  modèles), avec pipeline scanner dédoublé (ML Kit Android / VisionKit iOS).
+- Compose Multiplatform doit être réévalué annuellement (suivre les
+  releases JetBrains).
+
+**Sources** :
+- Google Android Developers — [Compare Compose and View metrics](https://developer.android.com/develop/ui/compose/migrate/compare-metrics).
+- JetBrains — [Compose Multiplatform 1.8.0 : iOS Stable](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/).
+- Volpis — [Is Kotlin Multiplatform production-ready in 2026?](https://volpis.com/blog/is-kotlin-multiplatform-production-ready/).
+- DEV — [Android UI: Jetpack Compose vs. Views — The Definitive Shift](https://dev.to/trinadhthatakula/android-ui-jetpack-compose-vs-views-the-definitive-shift-and-what-it-means-for-you-3gi0).
+
 ---
 
 ## 9. Gestion des erreurs
