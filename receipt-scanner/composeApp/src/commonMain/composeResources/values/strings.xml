@@ -10,6 +10,17 @@
 
     <string name="empty_title">Aucun ticket archivé</string>
     <string name="empty_subtitle">Appuyez sur le bouton + pour scanner votre premier ticket.</string>
+    <string name="empty_cta">Scanner mon premier ticket</string>
+
+    <string name="search_placeholder">Rechercher un ticket…</string>
+    <string name="search_clear">Effacer</string>
+    <string name="search_no_results">Aucun ticket ne correspond à « %1$s ».</string>
+
+    <string name="sort_label">Trier</string>
+    <string name="sort_date_desc">Plus récents d'abord</string>
+    <string name="sort_date_asc">Plus anciens d'abord</string>
+    <string name="sort_name_asc">Nom (A-Z)</string>
+    <string name="sort_size_desc">Plus volumineux d'abord</string>
 
     <string name="scan_error">Impossible de démarrer le scanner : %1$s</string>
     <string name="scan_cancelled">Scan annulé</string>

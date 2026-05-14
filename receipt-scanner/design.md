@@ -129,7 +129,6 @@ L'app comporte deux écrans, reliés par Navigation Compose :
 │  Tickets de caisse                       │   ← TopAppBar Material 3
 ├──────────────────────────────────────────┤
 │                                          │
-│                                          │
 │              📄                          │
 │         (icône PDF)                      │
 │                                          │
@@ -138,7 +137,10 @@ L'app comporte deux écrans, reliés par Navigation Compose :
 │   Appuyez sur le bouton + pour           │
 │   scanner votre premier ticket.          │
 │                                          │
-│                                          │
+│        ┌────────────────────┐            │
+│        │ + Scanner mon 1er  │            │   ← Bouton CTA
+│        │   ticket            │            │
+│        └────────────────────┘            │
 │                                          │
 │                           ┌────────────┐ │
 │                           │ + Scanner  │ │   ← ExtendedFAB
@@ -150,9 +152,10 @@ L'app comporte deux écrans, reliés par Navigation Compose :
 
 ```
 ┌──────────────────────────────────────────┐
-│  Tickets de caisse                       │
+│  Tickets de caisse                  ⇅    │   ← TopAppBar + bouton tri
 ├──────────────────────────────────────────┤
-│  3 ticket(s) — 142 Ko au total           │   ← Summary
+│  🔍 Rechercher un ticket…            ✕  │   ← Champ recherche (clear si rempli)
+│  3 ticket(s) — 142 Ko au total           │   ← Summary (sur la liste filtrée)
 │                                          │
 │  ┌────────────────────────────────────┐  │
 │  │ 📄  Ticket du 14/05/2026 10:32     │  │
@@ -172,6 +175,31 @@ L'app comporte deux écrans, reliés par Navigation Compose :
 │                           │ + Scanner  │ │
 │                           └────────────┘ │
 └──────────────────────────────────────────┘
+```
+
+#### Menu de tri
+
+Bouton **⇅** dans la TopAppBar → `DropdownMenu` (désactivé tant que la
+liste est vide) :
+
+```
+┌──────────────────────────┐
+│ ✓  Plus récents d'abord  │   (défaut : DateDesc)
+│    Plus anciens d'abord  │
+│    Nom (A-Z)             │
+│    Plus volumineux       │
+└──────────────────────────┘
+```
+
+#### Recherche
+
+Champ `OutlinedTextField` avec icône loupe, placeholder
+« Rechercher un ticket… » et croix de reset quand non vide. Filtrage en
+mémoire par `name.contains(query, ignoreCase = true)`. Si la recherche
+ne ramène rien, message « Aucun ticket ne correspond à "…". »
+
+`query` et `sortOption` sont stockés via `rememberSaveable` → survivent
+à la rotation et au process death.
 ```
 
 ### 4.2 Écran détail : `ReceiptDetailScreen`
