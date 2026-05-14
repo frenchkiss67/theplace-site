@@ -2,7 +2,6 @@ package com.theplace.receiptscanner
 
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,20 +30,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val dynamicScheme = rememberDynamicColorScheme()
             App(
                 viewModel = viewModel,
-                dynamicColorScheme = dynamicScheme,
-                onScanCancelled = {
-                    Toast.makeText(this, R.string.scan_cancelled, Toast.LENGTH_SHORT).show()
-                },
-                onScanFailure = { reason ->
-                    Toast.makeText(
-                        this,
-                        getString(R.string.scan_error, reason),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                },
+                dynamicColorScheme = rememberDynamicColorScheme(),
             )
         }
     }

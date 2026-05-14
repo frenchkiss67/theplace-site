@@ -1,5 +1,6 @@
 package com.theplace.receiptscanner.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -68,7 +71,9 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ReceiptListScreen(
     receipts: List<Receipt>,
+    snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
+    onItemClick: (Receipt) -> Unit,
     onRename: (Receipt, String) -> Unit,
     onDelete: (Receipt) -> Unit,
     onOpen: (Receipt) -> Unit,
@@ -80,6 +85,7 @@ fun ReceiptListScreen(
     val totalSize = remember(receipts) { receipts.sumOf { it.sizeBytes } }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text(stringResource(Res.string.app_name)) })
         },
@@ -112,6 +118,7 @@ fun ReceiptListScreen(
                     items(receipts, key = { it.id }) { receipt ->
                         ReceiptCard(
                             receipt = receipt,
+                            onClick = { onItemClick(receipt) },
                             onOpen = { onOpen(receipt) },
                             onShare = { onShare(receipt) },
                             onRename = { renameTarget = receipt },
@@ -157,12 +164,17 @@ fun ReceiptListScreen(
 @Composable
 private fun ReceiptCard(
     receipt: Receipt,
+    onClick: () -> Unit,
     onOpen: () -> Unit,
     onShare: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

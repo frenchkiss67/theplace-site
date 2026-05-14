@@ -1,0 +1,159 @@
+package com.theplace.receiptscanner.platform
+
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.resources.Res
+import com.theplace.receiptscanner.resources.detail_loading
+import com.theplace.receiptscanner.resources.detail_preview_unavailable
+import com.theplace.receiptscanner.resources.page_index
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+actual fun PdfPreview(receipt: Receipt, modifier: Modifier) {
+    val context = LocalContext.current
+    val storage = remember(context) { PdfStorage(context) }
+    val file = remember(receipt.fileName) { storage.file(receipt.fileName) }
+
+    // Renderer ouvert pour la durée de vie du composable, fermé proprement à la sortie.
+    val renderer = remember(file.path) { openRenderer(file) }
+    DisposableEffect(renderer) {
+        onDispose { runCatching { renderer?.close() } }
+    }
+
+    if (renderer == null) {
+        Box(
+            modifier = modifier.fillMaxWidth().padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(Res.string.detail_preview_unavailable),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(count = renderer.pageCount) { index ->
+            PdfPageItem(renderer, index, totalPages = renderer.pageCount)
+        }
+    }
+}
+
+@Composable
+private fun PdfPageItem(renderer: PdfRenderer, index: Int, totalPages: Int) {
+    var image by remember(renderer, index) { mutableStateOf<ImageBitmap?>(null) }
+    var aspect by remember(renderer, index) { mutableStateOf(0.7f) }
+
+    LaunchedEffect(renderer, index) {
+        val (bitmap, ratio) = withContext(Dispatchers.IO) { renderPage(renderer, index) }
+        aspect = ratio
+        image = bitmap?.asImageBitmap()
+    }
+
+    Column {
+        Text(
+            text = stringResource(Res.string.page_index, index + 1, totalPages),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            tonalElevation = 1.dp,
+            modifier = Modifier.fillMaxWidth().aspectRatio(aspect),
+        ) {
+            val pageImage = image
+            if (pageImage == null) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = stringResource(Res.string.detail_loading),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            } else {
+                Image(
+                    bitmap = pageImage,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                )
+            }
+        }
+    }
+}
+
+private fun openRenderer(file: File): PdfRenderer? = runCatching {
+    val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    PdfRenderer(pfd)
+}.getOrNull()
+
+/** Rend une page en bitmap calibré sur ~2x la largeur logique pour la netteté. */
+private fun renderPage(renderer: PdfRenderer, index: Int): Pair<Bitmap?, Float> {
+    return runCatching {
+        renderer.openPage(index).use { page ->
+            val targetWidth = 1600
+            val scale = targetWidth.toFloat() / page.width
+            val width = targetWidth
+            val height = (page.height * scale).toInt().coerceAtLeast(1)
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            bitmap to (width.toFloat() / height.toFloat())
+        }
+    }.getOrElse { null to 0.7f }
+}
+
+private inline fun <T> PdfRenderer.Page.use(block: (PdfRenderer.Page) -> T): T {
+    try {
+        return block(this)
+    } finally {
+        close()
+    }
+}

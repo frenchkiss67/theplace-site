@@ -14,9 +14,17 @@
     <string name="scan_error">Impossible de démarrer le scanner : %1$s</string>
     <string name="scan_cancelled">Scan annulé</string>
     <string name="receipt_saved">« %1$s » archivé</string>
+    <string name="receipt_deleted">« %1$s » supprimé</string>
 
     <string name="receipts_count">%1$d ticket(s) — %2$s au total</string>
     <string name="pages_label">%1$d page(s)</string>
+
+    <string name="detail_title">Détail du ticket</string>
+    <string name="detail_loading">Chargement de l'aperçu…</string>
+    <string name="detail_preview_unavailable">Aperçu indisponible</string>
+    <string name="detail_back">Retour</string>
+    <string name="detail_open_external">Ouvrir dans un viewer externe</string>
+    <string name="page_index">Page %1$d / %2$d</string>
 
     <string name="dialog_delete_title">Supprimer ce ticket ?</string>
     <string name="dialog_delete_message">Le PDF sera définitivement supprimé.</string>

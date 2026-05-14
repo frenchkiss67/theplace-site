@@ -75,26 +75,52 @@ Usage personnel mono-utilisateur sur son propre téléphone.
 ### 3.2 Flux annulation
 
 L'utilisateur quitte le scanner (back, croix) → `ScanOutcome.Cancelled` →
-toast discret « Scan annulé ». Aucun fichier créé, aucun INSERT.
+**Snackbar** discret « Scan annulé ». Aucun fichier créé, aucun INSERT.
 
 ### 3.3 Flux erreur
 
 `ScanOutcome.Failure(message)` (Play Services indispo, modèle non
-téléchargé, etc.) → toast d'erreur lisible en français incluant le motif.
+téléchargé, etc.) → Snackbar incluant le motif (« Impossible de démarrer
+le scanner : … »).
 
-### 3.4 Actions sur un ticket archivé
+### 3.4 Flux consultation d'un ticket
+
+```
+[Liste]  → tap sur une carte
+   ↓ navController.navigate("detail/${id}")
+[Détail] → en-tête (nom, date, taille, pages)
+         → LazyColumn avec une page PDF rendue par item (PdfRenderer)
+         → bouton « Ouvrir dans un viewer externe »
+         → actions toolbar : partager / renommer / supprimer / retour
+```
+
+Le `ReceiptDetailScreen` reçoit l'objet `Receipt` retrouvé en mémoire
+(par `id` dans `receipts.firstOrNull { it.id == id }`). Si le ticket
+n'existe plus (supprimé entre-temps), on `popBackStack()` vers la liste.
+
+### 3.5 Actions sur un ticket archivé
+
+Disponibles depuis la **liste** (icônes par carte) **et le détail**
+(toolbar) :
 
 - **Ouvrir** : intent `ACTION_VIEW` `application/pdf` via FileProvider.
 - **Partager** : `ACTION_SEND` `application/pdf` (mail, drive, etc.).
 - **Renommer** : dialogue avec champ texte ; vide ou inchangé = no-op.
 - **Supprimer** : dialogue de confirmation, puis suppression du PDF et
-  de la ligne Room.
+  de la ligne Room, Snackbar « … supprimé », pop si on était en détail.
 
 ---
 
 ## 4. Maquettes d'écrans
 
-### 4.1 Écran unique : `ReceiptListScreen`
+L'app comporte deux écrans, reliés par Navigation Compose :
+
+| Route          | Composable              | Argument          |
+|----------------|--------------------------|-------------------|
+| `list`         | `ReceiptListScreen`     | —                 |
+| `detail/{id}`  | `ReceiptDetailScreen`   | `id: Long` (Room) |
+
+### 4.1 Écran liste : `ReceiptListScreen`
 
 #### État vide (premier lancement)
 
@@ -148,7 +174,38 @@ téléchargé, etc.) → toast d'erreur lisible en français incluant le motif.
 └──────────────────────────────────────────┘
 ```
 
-### 4.2 Dialogues
+### 4.2 Écran détail : `ReceiptDetailScreen`
+
+```
+┌──────────────────────────────────────────┐
+│ ←  Détail du ticket          ⇪   ✎   🗑  │   ← back / share / rename / delete
+├──────────────────────────────────────────┤
+│  Ticket du 14/05/2026 10:32              │
+│  14/05/2026 10:32                        │
+│  2 page(s)  ·  76 Ko                     │
+│                                          │
+│  Page 1 / 2                              │
+│  ┌──────────────────────────────────┐    │
+│  │                                  │    │
+│  │     [PDF page 1 — bitmap]        │    │
+│  │                                  │    │
+│  └──────────────────────────────────┘    │
+│  Page 2 / 2                              │
+│  ┌──────────────────────────────────┐    │
+│  │     [PDF page 2 — bitmap]        │    │
+│  └──────────────────────────────────┘    │
+│                                          │
+│              [⇗ Ouvrir dans un viewer]   │
+└──────────────────────────────────────────┘
+```
+
+L'aperçu est produit par `PdfPreview` (composable `expect/actual`). Sur
+Android, la `actual` ouvre un `PdfRenderer` sur le fichier privé, rend
+chaque page à la demande (`Dispatchers.IO`) sous forme de `Bitmap`
+agrandi à ~1600 px de large, converti en `ImageBitmap` et affiché dans
+un `LazyColumn`. Le `PdfRenderer` est fermé via `DisposableEffect`.
+
+### 4.3 Dialogues
 
 **Renommer** :
 
@@ -178,7 +235,7 @@ téléchargé, etc.) → toast d'erreur lisible en français incluant le motif.
 └──────────────────────────────────────┘
 ```
 
-### 4.3 Thème et palette
+### 4.4 Thème et palette
 
 - **Material 3** + **dynamic color** sur Android 12+ (suit le wallpaper).
 - Fallback hors dynamic color :
@@ -413,14 +470,21 @@ reste valide.
 - Partage natif : `FileProvider` veut un fichier sur disque.
 - Lecture d'un PDF = `Uri` → viewer ; pas de step de conversion.
 
-### ADR-4 — Une seule activité, pas de navigation Compose pour v1
+### ADR-4 — Une seule activité, Navigation Compose multiplatforme
 
-**Décision** : `MainActivity` + un écran Compose `ReceiptListScreen`. Les
-dialogues sont gérés en local-state Compose. Aucune route Navigation.
-**Raisons** : un seul écran, ajouter Navigation serait du sur-design.
-**Limite** : si on ajoute un écran « détail » avec preview PDF, on
-introduira `androidx.navigation:navigation-compose` (déjà dans les
-dépendances, anticipé).
+**Décision** : `MainActivity` reste l'unique activité ; on utilise
+**Navigation Compose multiplatforme** (`org.jetbrains.androidx.navigation:
+navigation-compose`) pour router entre la liste et le détail. Les
+dialogues sont gérés en local-state Compose dans chaque écran.
+
+**Historique** : la v1 (Android-seul) avait un écran unique et reportait
+l'ajout de Navigation. Depuis l'ajout de l'écran détail (ADR-9), le
+routing est traité par `NavHost` côté `commonMain`, ce qui marche aussi
+sur iOS dès que la cible sera activée.
+
+**Routes** :
+- `list` → `ReceiptListScreen`
+- `detail/{id}` (Long Room) → `ReceiptDetailScreen`
 
 ### ADR-5 — Pas de DI (Hilt/Koin) en v1
 
@@ -534,6 +598,48 @@ plus cher.
   avec les `actual` pour scanner (`VNDocumentCameraViewController`),
   PdfActions (`UIActivityViewController`), Repository (SQLDelight +
   `NSFileManager`), et compiler sur macOS.
+
+### ADR-9 — Écran détail + preview PDF via `PdfRenderer`
+
+**Contexte** : v1 montrait juste une liste ; pour vérifier qu'un ticket
+correspond bien à ce qu'on cherche sans quitter l'app, il faut un aperçu
+inline.
+
+**Décision** :
+1. Ajouter un `ReceiptDetailScreen` accessible par tap sur une carte.
+2. Composer l'aperçu via un `@Composable expect fun PdfPreview(receipt)`,
+   implémenté côté Android avec `android.graphics.pdf.PdfRenderer`.
+3. Rendu page par page (`LazyColumn`), chaque page rendue à la demande
+   sur `Dispatchers.IO`, convertie en `ImageBitmap` Compose.
+4. Le `PdfRenderer` est ouvert dans un `remember(file.path)` et fermé
+   dans `DisposableEffect.onDispose` pour éviter les fuites.
+5. Navigation Compose multiplatforme (cf. ADR-4 mis à jour).
+
+**Conséquences** :
+- ✅ Preview inline sans dépendance tierce (PdfRenderer fait partie du
+  SDK Android depuis l'API 21).
+- ✅ Tout l'écran reste en `commonMain`, seule la fonction
+  `PdfPreview.android.kt` connaît `PdfRenderer`. Côté iOS, on fournira
+  une `actual` via `CGPDFDocument` + Core Graphics.
+- ⚠️ `PdfRenderer` n'est pas thread-safe : on rend page par page,
+  jamais en parallèle. Acceptable pour un ticket de quelques pages.
+- ⚠️ Pour des PDFs lourds, la mémoire des bitmaps peut grimper —
+  factor d'échelle limité à ~1600 px de large, suffisant pour des
+  tickets papier.
+
+### ADR-10 — Snackbar plutôt que Toast pour le feedback
+
+**Décision** : les feedbacks utilisateur (« archivé », « supprimé »,
+« scan annulé », erreurs scanner) passent par un `SnackbarHost` géré
+dans `App.kt`, déclenché depuis le callback `rememberDocumentScannerLauncher`
+ou les actions ViewModel.
+
+**Raisons** :
+- Cohérent avec Material 3 (Toasts deviennent moins encouragés).
+- Reste en `commonMain` (`Toast` est Android-only).
+- Stringes via Compose Resources, donc localisables côté iOS plus tard.
+- Le `SnackbarHostState` est unique et partagé entre la liste et le
+  détail via les arguments des screens.
 
 ---
 
