@@ -555,6 +555,14 @@ sur iOS dès que la cible sera activée.
 - `list` → `ReceiptListScreen`
 - `detail/{id}` (Long Room) → `ReceiptDetailScreen`
 
+**Transitions** (`enterTransition` / `exitTransition` /
+`popEnterTransition` / `popExitTransition` sur chaque `composable`) :
+- Liste → détail : détail glisse depuis la droite (`SlideDirection.Start`,
+  250 ms) + crossfade 150 ms ; la liste fond doucement en arrière-plan.
+- Retour détail → liste : détail glisse vers la droite
+  (`SlideDirection.End`) ; la liste glisse depuis la gauche et apparaît.
+- Conventions Material : 250 ms pour le slide, 150 ms pour le fade.
+
 ### ADR-5 — Pas de DI (Hilt/Koin) en v1
 
 **Décision** : un `ServiceLocator` côté `androidMain` construit `Repository`

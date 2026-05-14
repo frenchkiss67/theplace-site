@@ -1,5 +1,9 @@
 package com.theplace.receiptscanner
 
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -37,6 +41,10 @@ import org.jetbrains.compose.resources.stringResource
 private const val ROUTE_LIST = "list"
 private const val ROUTE_DETAIL = "detail/{id}"
 private const val ARG_ID = "id"
+
+// Durées de transition Material Expressive : ~250 ms slide, ~150 ms fade.
+private const val NAV_SLIDE_MS = 250
+private const val NAV_FADE_MS = 150
 
 @Composable
 fun App(
@@ -94,7 +102,21 @@ fun App(
             navController = navController,
             startDestination = ROUTE_LIST,
         ) {
-            composable(ROUTE_LIST) {
+            // Liste : reste en place quand on pousse le détail (fade simple),
+            // glisse vers la droite quand on revient depuis le détail.
+            composable(
+                route = ROUTE_LIST,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_FADE_MS)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_FADE_MS)) },
+                popEnterTransition = {
+                    slideIntoContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
+                        fadeIn(animationSpec = tween(NAV_FADE_MS))
+                },
+                popExitTransition = {
+                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
+                        fadeOut(animationSpec = tween(NAV_FADE_MS))
+                },
+            ) {
                 ReceiptListScreen(
                     receipts = receipts,
                     selection = selection,
@@ -130,9 +152,26 @@ fun App(
                     onShare = viewModel::sharePdf,
                 )
             }
+            // Détail : entre par la droite, sort vers la droite au retour.
             composable(
                 route = ROUTE_DETAIL,
                 arguments = listOf(navArgument(ARG_ID) { type = NavType.LongType }),
+                enterTransition = {
+                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
+                        fadeIn(animationSpec = tween(NAV_FADE_MS))
+                },
+                exitTransition = {
+                    slideOutOfContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
+                        fadeOut(animationSpec = tween(NAV_FADE_MS))
+                },
+                popEnterTransition = {
+                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
+                        fadeIn(animationSpec = tween(NAV_FADE_MS))
+                },
+                popExitTransition = {
+                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
+                        fadeOut(animationSpec = tween(NAV_FADE_MS))
+                },
             ) { entry ->
                 val id = entry.arguments?.getLong(ARG_ID) ?: -1L
                 val receipt = receipts.firstOrNull { it.id == id }
