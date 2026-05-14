@@ -1,0 +1,64 @@
+name: receipt-scanner CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'receipt-scanner/**'
+      - '.github/workflows/receipt-scanner-ci.yml'
+  pull_request:
+    paths:
+      - 'receipt-scanner/**'
+      - '.github/workflows/receipt-scanner-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: receipt-scanner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: receipt-scanner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+
+      - name: Cache Gradle caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('receipt-scanner/**/*.gradle*', 'receipt-scanner/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Common JVM tests
+        run: ./gradlew :composeApp:testDebugUnitTest --stacktrace
+
+      - name: Assemble debug APK
+        run: ./gradlew :composeApp:assembleDebug --stacktrace
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: receipt-scanner/composeApp/build/reports/tests/
+          if-no-files-found: ignore

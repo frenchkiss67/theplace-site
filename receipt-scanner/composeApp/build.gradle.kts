@@ -47,6 +47,11 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
         }
 
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+        }
+
         androidMain.dependencies {
             // Activity Compose et runtime Android
             implementation("androidx.activity:activity-compose:1.9.2")
