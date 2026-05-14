@@ -200,7 +200,48 @@ ne ramène rien, message « Aucun ticket ne correspond à "…". »
 
 `query` et `sortOption` sont stockés via `rememberSaveable` → survivent
 à la rotation et au process death.
+
+#### Mode sélection multiple
+
+Long-press sur une carte → entre en mode sélection. Toggle par tap simple,
+ajout/retrait par tap sur d'autres cartes. Le bouton retour système quitte
+le mode (`PlatformBackHandler`).
+
 ```
+┌──────────────────────────────────────────┐
+│ ✕  3 sélectionné(s)     ☰  ⇪  📁  🗑     │   ← TopAppBar contextuelle
+├──────────────────────────────────────────┤
+│  🔍 Rechercher un ticket…            ✕  │
+│  3 ticket(s) — 142 Ko au total           │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │ ⦿  📄  Carrefour 02 mai            │  │   ← CheckCircle + secondaryContainer
+│  │       2 mai 2026, 18:14            │  │
+│  │       2 pages · 76 Ko              │  │
+│  └────────────────────────────────────┘  │
+│  ┌────────────────────────────────────┐  │
+│  │ ○  📄  Picard 30 avril             │  │   ← RadioButtonUnchecked
+│  │       30 avril 2026, 12:08         │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
+```
+
+Actions de la barre contextuelle : ✕ quitter / ☰ tout sélectionner /
+⇪ partage groupé (`ACTION_SEND_MULTIPLE`) / 📁 export SAF / 🗑 suppression
+groupée (avec confirmation).
+
+#### Export multi-tickets vers un dossier (SAF)
+
+1. L'utilisateur sélectionne ≥ 1 ticket et tape l'icône 📁.
+2. `rememberExportFolderLauncher` lance `ActivityResultContracts.OpenDocumentTree`.
+3. Le système ouvre le picker SAF natif ; l'utilisateur choisit un
+   dossier (Drive, Documents, USB OTG, etc.).
+4. `AndroidPdfActions.exportTo` :
+   - `DocumentsContract.createDocument(treeUri, "application/pdf", "<nom sanitisé>.pdf")`
+     pour chaque ticket (caractères interdits remplacés par `_`).
+   - Copie `filesDir/receipts/<file>` → flux SAF, sur `Dispatchers.IO`.
+5. Snackbar : « N ticket(s) exporté(s) » (succès), version partielle ou
+   message d'erreur sinon.
 
 ### 4.2 Écran détail : `ReceiptDetailScreen`
 
@@ -668,6 +709,40 @@ ou les actions ViewModel.
 - Stringes via Compose Resources, donc localisables côté iOS plus tard.
 - Le `SnackbarHostState` est unique et partagé entre la liste et le
   détail via les arguments des screens.
+
+### ADR-11 — Sélection multiple et export SAF
+
+**Contexte** : sortir les tickets de l'app pour les archiver ailleurs
+(Drive, USB) sans cloud sync explicite, et permettre des opérations en
+lot (partage / suppression).
+
+**Décision** :
+1. `selection: StateFlow<Set<Long>>` exposé par `ReceiptViewModel`.
+2. UI : long-press → entre en sélection, TopAppBar contextuelle
+   (count, select-all, share, export, delete), checkbox sur les cartes,
+   FAB masqué, `PlatformBackHandler` pour quitter.
+3. Partage groupé : `PdfActions.shareMultiple` → `ACTION_SEND_MULTIPLE`
+   avec `EXTRA_STREAM` `ArrayList<Uri>` et `FLAG_GRANT_READ_URI_PERMISSION`.
+4. Export : nouvel `expect class PlatformExportTarget` + composable
+   `rememberExportFolderLauncher` ; Android wrappe
+   `ActivityResultContracts.OpenDocumentTree`. La copie se fait via
+   `DocumentsContract.createDocument` + `ContentResolver.openOutputStream`
+   sur `Dispatchers.IO`.
+5. Le ViewModel switche `receipts` en `SharingStarted.Eagerly` pour que
+   `selection`/actions groupées voient toujours la liste à jour sans
+   dépendre d'un abonnement UI actif.
+
+**Conséquences** :
+- ✅ L'app reste sans permission runtime : SAF gère lui-même la
+  permission temporaire sur le dossier cible.
+- ✅ Sanitisation du nom de fichier (`/\?*:|"<>` → `_`) pour la
+  compatibilité FAT/exFAT.
+- ✅ Pas de persistance de l'URI (`takePersistableUriPermission`) car
+  l'usage est immédiat et ponctuel.
+- ⚠️ La frontière `expect/actual` s'élargit : `PlatformExportTarget` +
+  `PlatformBackHandler` côté iOS resteront à fournir.
+- ⚠️ `Eagerly` garde la collection vivante toute la durée de la VM —
+  bénin ici (StateFlow → StateFlow).
 
 ---
 

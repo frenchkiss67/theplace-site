@@ -2,7 +2,9 @@ package com.theplace.receiptscanner.viewmodel
 
 import com.theplace.receiptscanner.data.Receipt
 import com.theplace.receiptscanner.data.ReceiptRepository
+import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
+import com.theplace.receiptscanner.platform.PlatformExportTarget
 import com.theplace.receiptscanner.platform.PlatformScanResult
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -106,6 +108,90 @@ class ReceiptViewModelTest {
         assertEquals(listOf(r to "Ticket carrefour"), actions.shared)
     }
 
+    // -- Multi-sélection -----------------------------------------------------
+
+    @Test
+    fun toggleSelection_adds_then_removes_id() = runTest(dispatcher) {
+        val vm = ReceiptViewModel(FakeRepository(), FakePdfActions())
+
+        vm.toggleSelection(1)
+        vm.toggleSelection(2)
+        assertEquals(setOf(1L, 2L), vm.selection.first())
+
+        vm.toggleSelection(1)
+        assertEquals(setOf(2L), vm.selection.first())
+    }
+
+    @Test
+    fun selectAll_replaces_selection_and_clearSelection_empties_it() = runTest(dispatcher) {
+        val vm = ReceiptViewModel(FakeRepository(), FakePdfActions())
+
+        vm.selectAll(listOf(1L, 2L, 3L))
+        assertEquals(setOf(1L, 2L, 3L), vm.selection.first())
+
+        vm.clearSelection()
+        assertTrue(vm.selection.first().isEmpty())
+    }
+
+    @Test
+    fun shareSelected_passes_only_selected_receipts_to_PdfActions() = runTest(dispatcher) {
+        val repo = FakeRepository()
+        val actions = FakePdfActions()
+        val vm = ReceiptViewModel(repo, actions)
+        val all = listOf(receipt(id = 1, name = "A"), receipt(id = 2, name = "B"), receipt(id = 3, name = "C"))
+        repo.emit(all)
+        advanceUntilIdle()
+
+        vm.toggleSelection(1)
+        vm.toggleSelection(3)
+        vm.shareSelected("Tickets")
+
+        assertEquals(1, actions.sharedMultiple.size)
+        val (sharedReceipts, label) = actions.sharedMultiple.single()
+        assertEquals(listOf(1L, 3L), sharedReceipts.map { it.id })
+        assertEquals("Tickets", label)
+    }
+
+    @Test
+    fun shareSelected_is_noop_when_selection_empty() = runTest(dispatcher) {
+        val actions = FakePdfActions()
+        val vm = ReceiptViewModel(FakeRepository(), actions)
+
+        vm.shareSelected("Tickets")
+
+        assertTrue(actions.sharedMultiple.isEmpty())
+    }
+
+    @Test
+    fun deleteSelected_removes_each_and_clears_selection() = runTest(dispatcher) {
+        val repo = FakeRepository()
+        val vm = ReceiptViewModel(repo, FakePdfActions())
+        val all = listOf(receipt(id = 1), receipt(id = 2), receipt(id = 3))
+        repo.emit(all)
+        advanceUntilIdle()
+
+        vm.toggleSelection(1)
+        vm.toggleSelection(2)
+
+        var reported = -1
+        vm.deleteSelected { reported = it }
+        advanceUntilIdle()
+
+        assertEquals(2, reported)
+        assertEquals(listOf(1L, 2L), repo.deleted.map { it.id })
+        assertTrue(vm.selection.first().isEmpty())
+    }
+
+    @Test
+    fun deleteSelected_calls_onDone_with_zero_when_empty() = runTest(dispatcher) {
+        val vm = ReceiptViewModel(FakeRepository(), FakePdfActions())
+
+        var reported = -1
+        vm.deleteSelected { reported = it }
+
+        assertEquals(0, reported)
+    }
+
     private fun receipt(
         id: Long = 1,
         name: String = "Ticket",
@@ -144,12 +230,16 @@ private class FakeRepository : ReceiptRepository {
 
     override suspend fun delete(receipt: Receipt) {
         deleted += receipt
+        source.update { current -> current.filterNot { it.id == receipt.id } }
     }
 }
 
 private class FakePdfActions : PdfActions {
     val opened = mutableListOf<Receipt>()
     val shared = mutableListOf<Pair<Receipt, String>>()
+    val sharedMultiple = mutableListOf<Pair<List<Receipt>, String>>()
+    val exported = mutableListOf<Pair<List<Receipt>, PlatformExportTarget>>()
+    var exportResult: ExportOutcome = ExportOutcome.Success(0)
 
     override fun open(receipt: Receipt) {
         opened += receipt
@@ -157,5 +247,17 @@ private class FakePdfActions : PdfActions {
 
     override fun share(receipt: Receipt, displayName: String) {
         shared += receipt to displayName
+    }
+
+    override fun shareMultiple(receipts: List<Receipt>, displayLabel: String) {
+        sharedMultiple += receipts to displayLabel
+    }
+
+    override suspend fun exportTo(
+        receipts: List<Receipt>,
+        target: PlatformExportTarget,
+    ): ExportOutcome {
+        exported += receipts to target
+        return exportResult
     }
 }

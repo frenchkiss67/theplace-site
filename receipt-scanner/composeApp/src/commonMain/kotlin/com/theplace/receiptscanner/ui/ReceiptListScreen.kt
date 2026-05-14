@@ -1,6 +1,7 @@
 package com.theplace.receiptscanner.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,17 +19,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +50,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,8 +62,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.platform.PlatformBackHandler
 import com.theplace.receiptscanner.resources.Res
 import com.theplace.receiptscanner.resources.action_delete
+import com.theplace.receiptscanner.resources.action_export
 import com.theplace.receiptscanner.resources.action_open
 import com.theplace.receiptscanner.resources.action_rename
 import com.theplace.receiptscanner.resources.action_scan
@@ -63,6 +73,8 @@ import com.theplace.receiptscanner.resources.action_share
 import com.theplace.receiptscanner.resources.app_name
 import com.theplace.receiptscanner.resources.dialog_cancel
 import com.theplace.receiptscanner.resources.dialog_confirm
+import com.theplace.receiptscanner.resources.dialog_delete_many_message
+import com.theplace.receiptscanner.resources.dialog_delete_many_title
 import com.theplace.receiptscanner.resources.dialog_delete_message
 import com.theplace.receiptscanner.resources.dialog_delete_title
 import com.theplace.receiptscanner.resources.dialog_rename_hint
@@ -75,6 +87,9 @@ import com.theplace.receiptscanner.resources.receipts_count
 import com.theplace.receiptscanner.resources.search_clear
 import com.theplace.receiptscanner.resources.search_no_results
 import com.theplace.receiptscanner.resources.search_placeholder
+import com.theplace.receiptscanner.resources.selection_all
+import com.theplace.receiptscanner.resources.selection_clear
+import com.theplace.receiptscanner.resources.selection_count
 import com.theplace.receiptscanner.resources.sort_date_asc
 import com.theplace.receiptscanner.resources.sort_date_desc
 import com.theplace.receiptscanner.resources.sort_label
@@ -88,9 +103,16 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ReceiptListScreen(
     receipts: List<Receipt>,
+    selection: Set<Long>,
     snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
     onItemClick: (Receipt) -> Unit,
+    onToggleSelection: (Receipt) -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: (List<Receipt>) -> Unit,
+    onShareSelected: () -> Unit,
+    onExportSelected: () -> Unit,
+    onDeleteSelected: () -> Unit,
     onRename: (Receipt, String) -> Unit,
     onDelete: (Receipt) -> Unit,
     onOpen: (Receipt) -> Unit,
@@ -98,6 +120,7 @@ fun ReceiptListScreen(
 ) {
     var renameTarget by remember { mutableStateOf<Receipt?>(null) }
     var deleteTarget by remember { mutableStateOf<Receipt?>(null) }
+    var deleteManyOpen by remember { mutableStateOf(false) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var sortOption by rememberSaveable { mutableStateOf(SortOption.DateDesc) }
@@ -107,37 +130,53 @@ fun ReceiptListScreen(
         receipts.filteredByQuery(query).sortedBy(sortOption)
     }
     val totalSize = remember(filteredReceipts) { filteredReceipts.sumOf { it.sizeBytes } }
+    val inSelectionMode = selection.isNotEmpty()
+
+    PlatformBackHandler(enabled = inSelectionMode, onBack = onClearSelection)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.app_name)) },
-                actions = {
-                    IconButton(
-                        onClick = { sortMenuOpen = true },
-                        enabled = receipts.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Default.Sort, contentDescription = stringResource(Res.string.sort_label))
-                    }
-                    SortMenu(
-                        expanded = sortMenuOpen,
-                        current = sortOption,
-                        onDismiss = { sortMenuOpen = false },
-                        onSelect = {
-                            sortOption = it
-                            sortMenuOpen = false
-                        },
-                    )
-                },
-            )
+            if (inSelectionMode) {
+                SelectionTopBar(
+                    count = selection.size,
+                    onClear = onClearSelection,
+                    onSelectAll = { onSelectAll(filteredReceipts) },
+                    onShare = onShareSelected,
+                    onExport = onExportSelected,
+                    onDelete = { deleteManyOpen = true },
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(stringResource(Res.string.app_name)) },
+                    actions = {
+                        IconButton(
+                            onClick = { sortMenuOpen = true },
+                            enabled = receipts.isNotEmpty(),
+                        ) {
+                            Icon(Icons.Default.Sort, contentDescription = stringResource(Res.string.sort_label))
+                        }
+                        SortMenu(
+                            expanded = sortMenuOpen,
+                            current = sortOption,
+                            onDismiss = { sortMenuOpen = false },
+                            onSelect = {
+                                sortOption = it
+                                sortMenuOpen = false
+                            },
+                        )
+                    },
+                )
+            }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onScanClicked,
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text(stringResource(Res.string.action_scan)) },
-            )
+            if (!inSelectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = onScanClicked,
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(stringResource(Res.string.action_scan)) },
+                )
+            }
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -174,7 +213,13 @@ fun ReceiptListScreen(
                     items(filteredReceipts, key = { it.id }) { receipt ->
                         ReceiptCard(
                             receipt = receipt,
-                            onClick = { onItemClick(receipt) },
+                            selectionMode = inSelectionMode,
+                            selected = receipt.id in selection,
+                            onTap = {
+                                if (inSelectionMode) onToggleSelection(receipt)
+                                else onItemClick(receipt)
+                            },
+                            onLongTap = { onToggleSelection(receipt) },
                             onOpen = { onOpen(receipt) },
                             onShare = { onShare(receipt) },
                             onRename = { renameTarget = receipt },
@@ -215,6 +260,69 @@ fun ReceiptListScreen(
             },
         )
     }
+
+    if (deleteManyOpen) {
+        AlertDialog(
+            onDismissRequest = { deleteManyOpen = false },
+            title = { Text(stringResource(Res.string.dialog_delete_many_title, selection.size)) },
+            text = { Text(stringResource(Res.string.dialog_delete_many_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteManyOpen = false
+                    onDeleteSelected()
+                }) { Text(stringResource(Res.string.dialog_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteManyOpen = false }) {
+                    Text(stringResource(Res.string.dialog_cancel))
+                }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionTopBar(
+    count: Int,
+    onClear: () -> Unit,
+    onSelectAll: () -> Unit,
+    onShare: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    TopAppBar(
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        title = { Text(stringResource(Res.string.selection_count, count)) },
+        navigationIcon = {
+            IconButton(onClick = onClear) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.selection_clear))
+            }
+        },
+        actions = {
+            IconButton(onClick = onSelectAll) {
+                Icon(Icons.Default.DoneAll, contentDescription = stringResource(Res.string.selection_all))
+            }
+            IconButton(onClick = onShare) {
+                Icon(Icons.Default.Share, contentDescription = stringResource(Res.string.action_share))
+            }
+            IconButton(onClick = onExport) {
+                Icon(Icons.Default.FolderOpen, contentDescription = stringResource(Res.string.action_export))
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(Res.string.action_delete),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -270,22 +378,37 @@ private fun sortMenuEntries() = listOf(
     SortOption.SizeDesc to Res.string.sort_size_desc,
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReceiptCard(
     receipt: Receipt,
-    onClick: () -> Unit,
+    selectionMode: Boolean,
+    selected: Boolean,
+    onTap: () -> Unit,
+    onLongTap: () -> Unit,
     onOpen: () -> Unit,
     onShare: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Card(
+        colors = if (selected) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else CardDefaults.cardColors(),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onTap, onLongClick = onLongTap),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selectionMode) {
+                    Icon(
+                        imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
                 Icon(
                     imageVector = Icons.Default.PictureAsPdf,
                     contentDescription = null,
@@ -311,23 +434,26 @@ private fun ReceiptCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = onOpen) {
-                    Icon(Icons.Default.OpenInNew, contentDescription = stringResource(Res.string.action_open))
-                }
-                IconButton(onClick = onShare) {
-                    Icon(Icons.Default.Share, contentDescription = stringResource(Res.string.action_share))
-                }
-                IconButton(onClick = onRename) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.action_rename))
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = stringResource(Res.string.action_delete),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
+            // Les actions individuelles sont masquées en mode sélection — l'utilisateur agit en lot.
+            if (!selectionMode) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = onOpen) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = stringResource(Res.string.action_open))
+                    }
+                    IconButton(onClick = onShare) {
+                        Icon(Icons.Default.Share, contentDescription = stringResource(Res.string.action_share))
+                    }
+                    IconButton(onClick = onRename) {
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.action_rename))
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(Res.string.action_delete),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }

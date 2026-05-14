@@ -16,6 +16,21 @@
     <string name="search_clear">Effacer</string>
     <string name="search_no_results">Aucun ticket ne correspond à « %1$s ».</string>
 
+    <string name="selection_count">%1$d sélectionné(s)</string>
+    <string name="selection_clear">Quitter la sélection</string>
+    <string name="selection_all">Tout sélectionner</string>
+    <string name="selection_share_label">Tickets de caisse</string>
+
+    <string name="action_export">Exporter dans un dossier</string>
+
+    <string name="dialog_delete_many_title">Supprimer %1$d ticket(s) ?</string>
+    <string name="dialog_delete_many_message">Les PDFs seront définitivement supprimés.</string>
+
+    <string name="receipts_deleted_many">%1$d ticket(s) supprimé(s)</string>
+    <string name="export_done">%1$d ticket(s) exporté(s)</string>
+    <string name="export_partial">%1$d ticket(s) exporté(s), erreur : %2$s</string>
+    <string name="export_failed">Export impossible : %1$s</string>
+
     <string name="sort_label">Trier</string>
     <string name="sort_date_desc">Plus récents d'abord</string>
     <string name="sort_date_asc">Plus anciens d'abord</string>
