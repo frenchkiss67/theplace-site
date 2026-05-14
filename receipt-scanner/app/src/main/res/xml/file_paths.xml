@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- PDFs archivés dans le dossier privé "files/receipts" -->
+    <files-path name="receipts" path="receipts/" />
+    <external-files-path name="receipts_ext" path="receipts/" />
+    <cache-path name="cache" path="." />
+</paths>
