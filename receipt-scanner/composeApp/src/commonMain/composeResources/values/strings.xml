@@ -41,6 +41,24 @@
     <string name="lock_button_unlock">Déverrouiller</string>
     <string name="lock_negative">Annuler</string>
 
+    <string name="category_label">Catégorie</string>
+    <string name="category_none">Sans catégorie</string>
+    <string name="category_all">Toutes</string>
+    <string name="category_groceries">Courses</string>
+    <string name="category_restaurant">Restaurant</string>
+    <string name="category_fuel">Carburant</string>
+    <string name="category_health">Santé</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_other">Autre</string>
+
+    <string name="amount_label">Montant</string>
+    <string name="amount_hint">12,30</string>
+    <string name="amount_unit">€</string>
+    <string name="amount_invalid">Format invalide</string>
+
+    <string name="month_total">Ce mois-ci : %1$s</string>
+    <string name="receipts_count_with_total">%1$d ticket(s) — %2$s · %3$s</string>
+
     <string name="sort_label">Trier</string>
     <string name="sort_date_desc">Plus récents d'abord</string>
     <string name="sort_date_asc">Plus anciens d'abord</string>

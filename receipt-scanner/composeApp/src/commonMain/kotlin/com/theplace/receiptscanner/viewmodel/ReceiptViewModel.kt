@@ -3,6 +3,7 @@ package com.theplace.receiptscanner.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
@@ -52,6 +53,18 @@ class ReceiptViewModel(
 
     fun delete(receipt: Receipt) {
         viewModelScope.launch { repository.delete(receipt) }
+    }
+
+    fun setCategory(receipt: Receipt, category: ReceiptCategory?) {
+        viewModelScope.launch {
+            repository.update(receipt.copy(category = category))
+        }
+    }
+
+    fun setAmount(receipt: Receipt, totalCents: Long?) {
+        viewModelScope.launch {
+            repository.update(receipt.copy(totalCents = totalCents))
+        }
     }
 
     fun openPdf(receipt: Receipt) = pdfActions.open(receipt)

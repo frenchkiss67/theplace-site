@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -41,6 +43,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.platform.PdfThumbnail
 import com.theplace.receiptscanner.platform.PlatformBackHandler
 import com.theplace.receiptscanner.resources.Res
@@ -80,6 +84,8 @@ import com.theplace.receiptscanner.resources.action_rename
 import com.theplace.receiptscanner.resources.action_scan
 import com.theplace.receiptscanner.resources.action_share
 import com.theplace.receiptscanner.resources.app_name
+import com.theplace.receiptscanner.resources.category_all
+import com.theplace.receiptscanner.resources.category_none
 import com.theplace.receiptscanner.resources.dialog_cancel
 import com.theplace.receiptscanner.resources.dialog_confirm
 import com.theplace.receiptscanner.resources.dialog_delete_many_message
@@ -91,8 +97,10 @@ import com.theplace.receiptscanner.resources.dialog_rename_title
 import com.theplace.receiptscanner.resources.empty_cta
 import com.theplace.receiptscanner.resources.empty_subtitle
 import com.theplace.receiptscanner.resources.empty_title
+import com.theplace.receiptscanner.resources.month_total
 import com.theplace.receiptscanner.resources.pages_label
 import com.theplace.receiptscanner.resources.receipts_count
+import com.theplace.receiptscanner.resources.receipts_count_with_total
 import com.theplace.receiptscanner.resources.search_clear
 import com.theplace.receiptscanner.resources.search_no_results
 import com.theplace.receiptscanner.resources.search_placeholder
@@ -108,8 +116,10 @@ import com.theplace.receiptscanner.resources.sort_date_desc
 import com.theplace.receiptscanner.resources.sort_label
 import com.theplace.receiptscanner.resources.sort_name_asc
 import com.theplace.receiptscanner.resources.sort_size_desc
+import com.theplace.receiptscanner.util.formatAmount
 import com.theplace.receiptscanner.util.formatDate
 import com.theplace.receiptscanner.util.formatSize
+import com.theplace.receiptscanner.util.nowMs
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,11 +153,16 @@ fun ReceiptListScreen(
     var sortOption by rememberSaveable { mutableStateOf(SortOption.DateDesc) }
     var sortMenuOpen by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
+    var categoryFilterKey by rememberSaveable { mutableStateOf(FILTER_ALL) }
 
-    val filteredReceipts = remember(receipts, query, sortOption) {
-        receipts.filteredByQuery(query).sortedBy(sortOption)
+    val categoryFilter = remember(categoryFilterKey) { categoryFilterFromKey(categoryFilterKey) }
+
+    val filteredReceipts = remember(receipts, query, sortOption, categoryFilter) {
+        receipts.filteredBy(categoryFilter).filteredByQuery(query).sortedBy(sortOption)
     }
     val totalSize = remember(filteredReceipts) { filteredReceipts.sumOf { it.sizeBytes } }
+    val now = remember { nowMs() }
+    val monthCents = remember(filteredReceipts, now) { filteredReceipts.monthTotalCents(now) }
     val inSelectionMode = selection.isNotEmpty()
 
     PlatformBackHandler(enabled = inSelectionMode, onBack = onClearSelection)
@@ -229,11 +244,24 @@ fun ReceiptListScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
+            CategoryFilterRow(
+                current = categoryFilterKey,
+                onSelect = { categoryFilterKey = it },
+            )
+
             if (filteredReceipts.isEmpty()) {
                 NoResultsState(query = query)
             } else {
+                val monthLabel = if (monthCents > 0) {
+                    stringResource(Res.string.month_total, formatAmount(monthCents))
+                } else null
                 Text(
-                    text = stringResource(
+                    text = if (monthLabel != null) stringResource(
+                        Res.string.receipts_count_with_total,
+                        filteredReceipts.size,
+                        formatSize(totalSize),
+                        monthLabel,
+                    ) else stringResource(
                         Res.string.receipts_count,
                         filteredReceipts.size,
                         formatSize(totalSize),
@@ -556,6 +584,52 @@ private fun NoResultsState(query: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+private const val FILTER_ALL = "all"
+private const val FILTER_NONE = "none"
+
+private fun categoryFilterFromKey(key: String): CategoryFilter = when (key) {
+    FILTER_ALL -> CategoryFilter.All
+    FILTER_NONE -> CategoryFilter.Uncategorised
+    else -> ReceiptCategory.entries.firstOrNull { it.name == key }
+        ?.let { CategoryFilter.Of(it) }
+        ?: CategoryFilter.All
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryFilterRow(
+    current: String,
+    onSelect: (String) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        item {
+            FilterChip(
+                selected = current == FILTER_ALL,
+                onClick = { onSelect(FILTER_ALL) },
+                label = { Text(stringResource(Res.string.category_all)) },
+            )
+        }
+        item {
+            FilterChip(
+                selected = current == FILTER_NONE,
+                onClick = { onSelect(FILTER_NONE) },
+                label = { Text(stringResource(Res.string.category_none)) },
+            )
+        }
+        itemsIndexed(ReceiptCategory.entries) { _, category ->
+            FilterChip(
+                selected = current == category.name,
+                onClick = { onSelect(category.name) },
+                label = { Text(stringResource(category.labelRes())) },
+            )
+        }
     }
 }
 

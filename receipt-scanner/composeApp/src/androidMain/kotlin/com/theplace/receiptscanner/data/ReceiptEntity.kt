@@ -6,6 +6,9 @@ import androidx.room.PrimaryKey
 /**
  * Représentation Room (Android). Séparée du modèle commun `Receipt` pour
  * laisser commonMain libre de toute annotation plateforme.
+ *
+ * Colonnes `category` et `totalCents` ajoutées en schema v2 — voir
+ * `ReceiptDatabase.MIGRATION_1_2`.
  */
 @Entity(tableName = "receipts")
 internal data class ReceiptEntity(
@@ -15,6 +18,8 @@ internal data class ReceiptEntity(
     val pageCount: Int,
     val sizeBytes: Long,
     val createdAt: Long,
+    val category: String? = null,
+    val totalCents: Long? = null,
 )
 
 internal fun ReceiptEntity.toDomain(): Receipt = Receipt(
@@ -24,6 +29,8 @@ internal fun ReceiptEntity.toDomain(): Receipt = Receipt(
     pageCount = pageCount,
     sizeBytes = sizeBytes,
     createdAt = createdAt,
+    category = ReceiptCategory.fromStorage(category),
+    totalCents = totalCents,
 )
 
 internal fun Receipt.toEntity(): ReceiptEntity = ReceiptEntity(
@@ -33,4 +40,6 @@ internal fun Receipt.toEntity(): ReceiptEntity = ReceiptEntity(
     pageCount = pageCount,
     sizeBytes = sizeBytes,
     createdAt = createdAt,
+    category = category?.name,
+    totalCents = totalCents,
 )

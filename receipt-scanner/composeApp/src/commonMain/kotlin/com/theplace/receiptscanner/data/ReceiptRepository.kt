@@ -19,5 +19,9 @@ interface ReceiptRepository {
     suspend fun addFromScan(scan: PlatformScanResult): Receipt
 
     suspend fun rename(receipt: Receipt, newName: String)
+
+    /** Replace en base toutes les colonnes mutables du ticket (catégorie, montant…). */
+    suspend fun update(receipt: Receipt)
+
     suspend fun delete(receipt: Receipt)
 }

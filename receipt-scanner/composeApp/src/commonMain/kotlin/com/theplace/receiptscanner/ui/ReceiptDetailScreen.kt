@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,12 +39,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.platform.PdfPreview
 import com.theplace.receiptscanner.resources.Res
 import com.theplace.receiptscanner.resources.action_delete
 import com.theplace.receiptscanner.resources.action_open
 import com.theplace.receiptscanner.resources.action_rename
 import com.theplace.receiptscanner.resources.action_share
+import com.theplace.receiptscanner.resources.amount_hint
+import com.theplace.receiptscanner.resources.amount_invalid
+import com.theplace.receiptscanner.resources.amount_label
+import com.theplace.receiptscanner.resources.amount_unit
+import com.theplace.receiptscanner.resources.category_label
+import com.theplace.receiptscanner.resources.category_none
 import com.theplace.receiptscanner.resources.detail_back
 import com.theplace.receiptscanner.resources.detail_open_external
 import com.theplace.receiptscanner.resources.detail_title
@@ -53,8 +62,10 @@ import com.theplace.receiptscanner.resources.dialog_delete_title
 import com.theplace.receiptscanner.resources.dialog_rename_hint
 import com.theplace.receiptscanner.resources.dialog_rename_title
 import com.theplace.receiptscanner.resources.pages_label
+import com.theplace.receiptscanner.util.formatAmount
 import com.theplace.receiptscanner.util.formatDate
 import com.theplace.receiptscanner.util.formatSize
+import com.theplace.receiptscanner.util.parseAmountCents
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +78,8 @@ fun ReceiptDetailScreen(
     onDelete: (Receipt) -> Unit,
     onOpen: (Receipt) -> Unit,
     onShare: (Receipt) -> Unit,
+    onCategoryChange: (Receipt, ReceiptCategory?) -> Unit,
+    onAmountChange: (Receipt, Long?) -> Unit,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -108,6 +121,11 @@ fun ReceiptDetailScreen(
                 .fillMaxSize(),
         ) {
             Header(receipt)
+            MetadataRow(
+                receipt = receipt,
+                onCategoryChange = { onCategoryChange(receipt, it) },
+                onAmountChange = { onAmountChange(receipt, it) },
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Box(modifier = Modifier.weight(1f, fill = true).fillMaxWidth()) {
                 PdfPreview(receipt = receipt, modifier = Modifier.fillMaxSize())
@@ -184,6 +202,89 @@ private fun ExternalOpenButton(onClick: () -> Unit) {
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MetadataRow(
+    receipt: Receipt,
+    onCategoryChange: (ReceiptCategory?) -> Unit,
+    onAmountChange: (Long?) -> Unit,
+) {
+    var categoryOpen by remember { mutableStateOf(false) }
+    val categoryLabel = receipt.category?.let { stringResource(it.labelRes()) }
+        ?: stringResource(Res.string.category_none)
+
+    // L'amount est édité localement et propagé au repo seulement quand le format
+    // est valide ; on garde la saisie brute dans le state pour ne pas bouger le
+    // curseur pendant la frappe.
+    var amountText by remember(receipt.id, receipt.totalCents) {
+        mutableStateOf(receipt.totalCents?.let { formatAmount(it).removeSuffix(" €") } ?: "")
+    }
+    var amountError by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = { categoryOpen = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.category_label) + " : " + categoryLabel,
+                    maxLines = 1,
+                )
+            }
+            DropdownMenu(
+                expanded = categoryOpen,
+                onDismissRequest = { categoryOpen = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.category_none)) },
+                    onClick = {
+                        onCategoryChange(null)
+                        categoryOpen = false
+                    },
+                )
+                ReceiptCategory.entries.forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(cat.labelRes())) },
+                        onClick = {
+                            onCategoryChange(cat)
+                            categoryOpen = false
+                        },
+                    )
+                }
+            }
+        }
+        OutlinedTextField(
+            value = amountText,
+            onValueChange = { raw ->
+                amountText = raw
+                if (raw.isBlank()) {
+                    amountError = false
+                    onAmountChange(null)
+                    return@OutlinedTextField
+                }
+                val parsed = parseAmountCents(raw)
+                amountError = parsed == null
+                if (parsed != null) onAmountChange(parsed)
+            },
+            singleLine = true,
+            isError = amountError,
+            label = { Text(stringResource(Res.string.amount_label)) },
+            placeholder = { Text(stringResource(Res.string.amount_hint)) },
+            trailingIcon = { Text(stringResource(Res.string.amount_unit)) },
+            supportingText = if (amountError) {
+                { Text(stringResource(Res.string.amount_invalid)) }
+            } else null,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

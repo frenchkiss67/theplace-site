@@ -40,6 +40,24 @@
     <string name="export_partial">%1$d receipt(s) exported, error: %2$s</string>
     <string name="export_failed">Export failed: %1$s</string>
 
+    <string name="category_label">Category</string>
+    <string name="category_none">Uncategorised</string>
+    <string name="category_all">All</string>
+    <string name="category_groceries">Groceries</string>
+    <string name="category_restaurant">Restaurant</string>
+    <string name="category_fuel">Fuel</string>
+    <string name="category_health">Health</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_other">Other</string>
+
+    <string name="amount_label">Amount</string>
+    <string name="amount_hint">12.30</string>
+    <string name="amount_unit">€</string>
+    <string name="amount_invalid">Invalid format</string>
+
+    <string name="month_total">This month: %1$s</string>
+    <string name="receipts_count_with_total">%1$d receipt(s) — %2$s · %3$s</string>
+
     <string name="sort_label">Sort</string>
     <string name="sort_date_desc">Newest first</string>
     <string name="sort_date_asc">Oldest first</string>

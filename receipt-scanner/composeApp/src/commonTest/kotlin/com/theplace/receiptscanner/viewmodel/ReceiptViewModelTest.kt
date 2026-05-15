@@ -1,6 +1,7 @@
 package com.theplace.receiptscanner.viewmodel
 
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
@@ -183,6 +184,21 @@ class ReceiptViewModelTest {
     }
 
     @Test
+    fun setCategory_and_setAmount_update_via_repository() = runTest(dispatcher) {
+        val repo = FakeRepository()
+        val vm = ReceiptViewModel(repo, FakePdfActions())
+        val r = receipt(id = 1, name = "Carrefour")
+
+        vm.setCategory(r, ReceiptCategory.Groceries)
+        vm.setAmount(r, 1230)
+        advanceUntilIdle()
+
+        assertEquals(2, repo.updated.size)
+        assertEquals(ReceiptCategory.Groceries, repo.updated[0].category)
+        assertEquals(1230L, repo.updated[1].totalCents)
+    }
+
+    @Test
     fun deleteSelected_calls_onDone_with_zero_when_empty() = runTest(dispatcher) {
         val vm = ReceiptViewModel(FakeRepository(), FakePdfActions())
 
@@ -226,6 +242,12 @@ private class FakeRepository : ReceiptRepository {
 
     override suspend fun rename(receipt: Receipt, newName: String) {
         renamed += receipt to newName
+    }
+
+    val updated = mutableListOf<Receipt>()
+    override suspend fun update(receipt: Receipt) {
+        updated += receipt
+        source.update { current -> current.map { if (it.id == receipt.id) receipt else it } }
     }
 
     override suspend fun delete(receipt: Receipt) {

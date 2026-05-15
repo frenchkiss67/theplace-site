@@ -57,6 +57,29 @@ class FormattingTest {
     }
 
     @Test
+    fun formatAmount_returns_french_format_with_two_decimals() {
+        assertEquals("", formatAmount(null))
+        assertEquals("0,00 €", formatAmount(0))
+        assertEquals("0,07 €", formatAmount(7))
+        assertEquals("12,30 €", formatAmount(1230))
+        assertEquals("1234,56 €", formatAmount(123_456))
+        assertEquals("-2,50 €", formatAmount(-250))
+    }
+
+    @Test
+    fun parseAmountCents_accepts_french_and_english_decimals() {
+        assertEquals(null, parseAmountCents(""))
+        assertEquals(null, parseAmountCents("   "))
+        assertEquals(1200L, parseAmountCents("12"))
+        assertEquals(1230L, parseAmountCents("12,30"))
+        assertEquals(1230L, parseAmountCents("12.30"))
+        assertEquals(1200L, parseAmountCents("12 €"))
+        assertEquals(1230L, parseAmountCents(" 12,3 ")) // 12.3 → 1230
+        assertEquals(null, parseAmountCents("abc"))
+        assertEquals(null, parseAmountCents("12,3,4"))
+    }
+
+    @Test
     fun defaultReceiptName_uses_formatted_date_prefix() {
         val instant = LocalDateTime(2026, 1, 2, 3, 4).toInstant(TimeZone.UTC)
         // On vérifie le préfixe pour ne pas dépendre de la TZ de la JVM de test.

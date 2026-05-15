@@ -39,6 +39,10 @@ internal class AndroidReceiptRepository(
         dao.update(receipt.copy(name = newName).toEntity())
     }
 
+    override suspend fun update(receipt: Receipt) {
+        dao.update(receipt.toEntity())
+    }
+
     override suspend fun delete(receipt: Receipt) {
         storage.delete(receipt.fileName)
         thumbnails.delete(receipt.fileName)

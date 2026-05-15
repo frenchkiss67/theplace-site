@@ -212,6 +212,8 @@ private fun AppContent(
                         },
                         onOpen = viewModel::openPdf,
                         onShare = viewModel::sharePdf,
+                        onCategoryChange = viewModel::setCategory,
+                        onAmountChange = viewModel::setAmount,
                     )
                 }
             }
