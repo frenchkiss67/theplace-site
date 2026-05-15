@@ -41,6 +41,13 @@
     <string name="lock_button_unlock">Déverrouiller</string>
     <string name="lock_negative">Annuler</string>
 
+    <string name="settings_backup_label">Sauvegarde automatique</string>
+    <string name="settings_backup_description">Copie quotidienne des PDFs dans un dossier que vous choisissez.</string>
+    <string name="settings_backup_pick">Choisir le dossier</string>
+    <string name="settings_backup_change">Changer</string>
+    <string name="settings_backup_folder_label">Dossier : %1$s</string>
+    <string name="settings_backup_folder_missing">Aucun dossier configuré</string>
+
     <string name="category_label">Catégorie</string>
     <string name="category_none">Sans catégorie</string>
     <string name="category_all">Toutes</string>

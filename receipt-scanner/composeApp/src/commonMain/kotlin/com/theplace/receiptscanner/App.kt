@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.theplace.receiptscanner.platform.AppLockSettings
+import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.ScanOutcome
@@ -52,11 +53,12 @@ private const val NAV_FADE_MS = 150
 fun App(
     viewModel: ReceiptViewModel,
     appLock: AppLockSettings,
+    backupSettings: BackupSettings,
     dynamicColorScheme: ColorScheme? = null,
 ) {
     ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
         BiometricGate(settings = appLock) {
-            AppContent(viewModel = viewModel, appLock = appLock)
+            AppContent(viewModel = viewModel, appLock = appLock, backupSettings = backupSettings)
         }
     }
 }
@@ -65,6 +67,7 @@ fun App(
 private fun AppContent(
     viewModel: ReceiptViewModel,
     appLock: AppLockSettings,
+    backupSettings: BackupSettings,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -74,6 +77,8 @@ private fun AppContent(
     val selection by viewModel.selection.collectAsState()
     val shareLabel = stringResource(Res.string.selection_share_label)
     val lockEnabled by appLock.enabled.collectAsState()
+    val backupEnabled by backupSettings.enabled.collectAsState()
+    val backupFolderLabel by backupSettings.folderLabel.collectAsState()
 
         val scanner = rememberDocumentScannerLauncher { outcome ->
             when (outcome) {
@@ -93,6 +98,11 @@ private fun AppContent(
                     )
                 }
             }
+        }
+
+        // SAF folder picker pour la configuration du dossier de backup auto.
+        val backupFolderLauncher = rememberExportFolderLauncher { target ->
+            if (target != null) backupSettings.setFolder(target)
         }
 
         // SAF folder picker pour l'export multi-tickets.
@@ -138,6 +148,10 @@ private fun AppContent(
                     lockEnabled = lockEnabled,
                     lockAvailable = appLock.isBiometricAvailable,
                     onToggleLock = appLock::setEnabled,
+                    backupEnabled = backupEnabled,
+                    backupFolderLabel = backupFolderLabel,
+                    onToggleBackup = backupSettings::setEnabled,
+                    onPickBackupFolder = { backupFolderLauncher.launch() },
                     snackbarHostState = snackbarHostState,
                     onScanClicked = { scanner.launch() },
                     onItemClick = { receipt ->

@@ -27,6 +27,13 @@
     <string name="lock_button_unlock">Unlock</string>
     <string name="lock_negative">Cancel</string>
 
+    <string name="settings_backup_label">Automatic backup</string>
+    <string name="settings_backup_description">Daily copy of PDFs to a folder you choose.</string>
+    <string name="settings_backup_pick">Choose folder</string>
+    <string name="settings_backup_change">Change</string>
+    <string name="settings_backup_folder_label">Folder: %1$s</string>
+    <string name="settings_backup_folder_missing">No folder configured</string>
+
     <string name="selection_count">%1$d selected</string>
     <string name="selection_clear">Exit selection</string>
     <string name="selection_all">Select all</string>

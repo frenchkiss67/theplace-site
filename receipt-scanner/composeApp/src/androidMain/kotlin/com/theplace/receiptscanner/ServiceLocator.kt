@@ -4,8 +4,10 @@ import android.content.Context
 import com.theplace.receiptscanner.data.AndroidReceiptRepository
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.AndroidAppLockSettings
+import com.theplace.receiptscanner.platform.AndroidBackupSettings
 import com.theplace.receiptscanner.platform.AndroidPdfActions
 import com.theplace.receiptscanner.platform.AppLockSettings
+import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PdfStorage
 
@@ -25,4 +27,7 @@ class ServiceLocator(context: Context) {
 
     val appLock: AppLockSettings =
         AndroidAppLockSettings(appContext)
+
+    val backupSettings: BackupSettings =
+        AndroidBackupSettings(appContext)
 }

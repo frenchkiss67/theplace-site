@@ -105,6 +105,12 @@ import com.theplace.receiptscanner.resources.search_clear
 import com.theplace.receiptscanner.resources.search_no_results
 import com.theplace.receiptscanner.resources.search_placeholder
 import com.theplace.receiptscanner.resources.selection_all
+import com.theplace.receiptscanner.resources.settings_backup_change
+import com.theplace.receiptscanner.resources.settings_backup_description
+import com.theplace.receiptscanner.resources.settings_backup_folder_label
+import com.theplace.receiptscanner.resources.settings_backup_folder_missing
+import com.theplace.receiptscanner.resources.settings_backup_label
+import com.theplace.receiptscanner.resources.settings_backup_pick
 import com.theplace.receiptscanner.resources.settings_lock_description
 import com.theplace.receiptscanner.resources.settings_lock_label
 import com.theplace.receiptscanner.resources.settings_lock_unavailable
@@ -130,6 +136,10 @@ fun ReceiptListScreen(
     lockEnabled: Boolean,
     lockAvailable: Boolean,
     onToggleLock: (Boolean) -> Unit,
+    backupEnabled: Boolean,
+    backupFolderLabel: String,
+    onToggleBackup: (Boolean) -> Unit,
+    onPickBackupFolder: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
     onItemClick: (Receipt) -> Unit,
@@ -330,6 +340,10 @@ fun ReceiptListScreen(
             lockEnabled = lockEnabled,
             lockAvailable = lockAvailable,
             onToggleLock = onToggleLock,
+            backupEnabled = backupEnabled,
+            backupFolderLabel = backupFolderLabel,
+            onToggleBackup = onToggleBackup,
+            onPickBackupFolder = onPickBackupFolder,
             onDismiss = { settingsOpen = false },
         )
     }
@@ -638,6 +652,10 @@ private fun SettingsDialog(
     lockEnabled: Boolean,
     lockAvailable: Boolean,
     onToggleLock: (Boolean) -> Unit,
+    backupEnabled: Boolean,
+    backupFolderLabel: String,
+    onToggleBackup: (Boolean) -> Unit,
+    onPickBackupFolder: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -645,6 +663,7 @@ private fun SettingsDialog(
         title = { Text(stringResource(Res.string.settings_title)) },
         text = {
             Column {
+                // --- Verrouillage biométrique ---
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -669,6 +688,45 @@ private fun SettingsDialog(
                         text = stringResource(Res.string.settings_lock_unavailable),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                // --- Sauvegarde automatique ---
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(Res.string.settings_backup_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(Res.string.settings_backup_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = backupEnabled && backupFolderLabel.isNotEmpty(),
+                        enabled = backupFolderLabel.isNotEmpty(),
+                        onCheckedChange = onToggleBackup,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (backupFolderLabel.isNotEmpty()) {
+                        stringResource(Res.string.settings_backup_folder_label, backupFolderLabel)
+                    } else {
+                        stringResource(Res.string.settings_backup_folder_missing)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onPickBackupFolder) {
+                    Text(
+                        if (backupFolderLabel.isNotEmpty()) {
+                            stringResource(Res.string.settings_backup_change)
+                        } else {
+                            stringResource(Res.string.settings_backup_pick)
+                        },
                     )
                 }
             }

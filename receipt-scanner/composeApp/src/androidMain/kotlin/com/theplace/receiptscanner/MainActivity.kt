@@ -35,6 +35,7 @@ class MainActivity : FragmentActivity() {
             App(
                 viewModel = viewModel,
                 appLock = services.appLock,
+                backupSettings = services.backupSettings,
                 dynamicColorScheme = rememberDynamicColorScheme(),
             )
         }

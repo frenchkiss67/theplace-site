@@ -8,6 +8,8 @@ class ReceiptScannerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // `AndroidBackupSettings` aligne lui-même WorkManager dans son init,
+        // pas besoin d'appel explicite ici.
         services = ServiceLocator(this)
     }
 }
