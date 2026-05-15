@@ -65,6 +65,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -325,6 +327,7 @@ fun ReceiptListScreen(
                             onShare = { onShare(receipt) },
                             onRename = { renameTarget = receipt },
                             onDelete = { deleteTarget = receipt },
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -510,20 +513,28 @@ private fun ReceiptCard(
     onShare: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Date verbeuse pour TalkBack — la version courte « 14/05/2026 » est mal lue.
     val cardSemantics = "${receipt.name}. ${formatDateForAccessibility(receipt.createdAt)}"
+    val haptic = LocalHapticFeedback.current
     Card(
         colors = if (selected) {
             CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
         } else CardDefaults.cardColors(),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = cardSemantics
             }
-            .combinedClickable(onClick = onTap, onLongClick = onLongTap),
+            .combinedClickable(
+                onClick = onTap,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongTap()
+                },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
