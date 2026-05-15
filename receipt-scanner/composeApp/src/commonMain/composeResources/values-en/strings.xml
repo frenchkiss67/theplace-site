@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Receipt scanner</string>
+
+    <string name="action_scan">Scan a receipt</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_open">Open PDF</string>
+    <string name="action_export">Export to a folder</string>
+
+    <string name="empty_title">No receipts yet</string>
+    <string name="empty_subtitle">Tap the + button to scan your first receipt.</string>
+    <string name="empty_cta">Scan my first receipt</string>
+
+    <string name="search_placeholder">Search a receipt…</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_no_results">No receipt matches "%1$s".</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_lock_label">Biometric lock</string>
+    <string name="settings_lock_description">Require fingerprint, face or PIN when opening the app.</string>
+    <string name="settings_lock_unavailable">No biometric or screen lock is configured on this device.</string>
+
+    <string name="lock_title">Receipts locked</string>
+    <string name="lock_subtitle">Authenticate to access your receipts.</string>
+    <string name="lock_button_unlock">Unlock</string>
+    <string name="lock_negative">Cancel</string>
+
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_clear">Exit selection</string>
+    <string name="selection_all">Select all</string>
+    <string name="selection_share_label">Receipts</string>
+
+    <string name="dialog_delete_many_title">Delete %1$d receipt(s)?</string>
+    <string name="dialog_delete_many_message">The PDFs will be permanently removed.</string>
+
+    <string name="receipts_deleted_many">%1$d receipt(s) deleted</string>
+    <string name="export_done">%1$d receipt(s) exported</string>
+    <string name="export_partial">%1$d receipt(s) exported, error: %2$s</string>
+    <string name="export_failed">Export failed: %1$s</string>
+
+    <string name="sort_label">Sort</string>
+    <string name="sort_date_desc">Newest first</string>
+    <string name="sort_date_asc">Oldest first</string>
+    <string name="sort_name_asc">Name (A–Z)</string>
+    <string name="sort_size_desc">Largest first</string>
+
+    <string name="scan_error">Cannot start the scanner: %1$s</string>
+    <string name="scan_cancelled">Scan cancelled</string>
+    <string name="receipt_saved">"%1$s" archived</string>
+    <string name="receipt_deleted">"%1$s" deleted</string>
+
+    <string name="receipts_count">%1$d receipt(s) — %2$s total</string>
+    <string name="pages_label">%1$d page(s)</string>
+
+    <string name="detail_title">Receipt details</string>
+    <string name="detail_loading">Loading preview…</string>
+    <string name="detail_preview_unavailable">Preview unavailable</string>
+    <string name="detail_back">Back</string>
+    <string name="detail_open_external">Open in external viewer</string>
+    <string name="page_index">Page %1$d / %2$d</string>
+
+    <string name="dialog_delete_title">Delete this receipt?</string>
+    <string name="dialog_delete_message">The PDF will be permanently removed.</string>
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+
+    <string name="dialog_rename_title">Rename receipt</string>
+    <string name="dialog_rename_hint">Receipt name</string>
+</resources>

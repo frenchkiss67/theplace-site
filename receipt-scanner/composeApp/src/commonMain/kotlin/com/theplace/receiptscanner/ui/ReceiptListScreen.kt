@@ -62,6 +62,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -432,12 +436,17 @@ private fun ReceiptCard(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val cardSemantics = "${receipt.name}. ${formatDate(receipt.createdAt)}"
     Card(
         colors = if (selected) {
             CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
         } else CardDefaults.cardColors(),
         modifier = Modifier
             .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = cardSemantics
+            }
             .combinedClickable(onClick = onTap, onLongClick = onLongTap),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
