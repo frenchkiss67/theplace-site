@@ -86,4 +86,22 @@ class FormattingTest {
         val name = defaultReceiptName(instant.toEpochMilliseconds())
         kotlin.test.assertTrue(name.startsWith("Ticket du "), "got: $name")
     }
+
+    @Test
+    fun formatDateForAccessibility_uses_long_french_month_and_h_separator() {
+        val instant = LocalDateTime(2026, 5, 14, 10, 32).toInstant(TimeZone.UTC)
+        assertEquals(
+            "14 mai 2026 à 10 h 32",
+            formatDateForAccessibility(instant.toEpochMilliseconds(), TimeZone.UTC),
+        )
+    }
+
+    @Test
+    fun formatDateForAccessibility_pads_minute_under_ten() {
+        val instant = LocalDateTime(2026, 1, 31, 8, 5).toInstant(TimeZone.UTC)
+        assertEquals(
+            "31 janvier 2026 à 8 h 05",
+            formatDateForAccessibility(instant.toEpochMilliseconds(), TimeZone.UTC),
+        )
+    }
 }

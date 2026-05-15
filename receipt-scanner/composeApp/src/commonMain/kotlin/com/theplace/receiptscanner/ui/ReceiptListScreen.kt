@@ -131,6 +131,7 @@ import com.theplace.receiptscanner.resources.sort_name_asc
 import com.theplace.receiptscanner.resources.sort_size_desc
 import com.theplace.receiptscanner.util.formatAmount
 import com.theplace.receiptscanner.util.formatDate
+import com.theplace.receiptscanner.util.formatDateForAccessibility
 import com.theplace.receiptscanner.util.formatSize
 import com.theplace.receiptscanner.util.nowMs
 import org.jetbrains.compose.resources.stringResource
@@ -510,7 +511,8 @@ private fun ReceiptCard(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val cardSemantics = "${receipt.name}. ${formatDate(receipt.createdAt)}"
+    // Date verbeuse pour TalkBack — la version courte « 14/05/2026 » est mal lue.
+    val cardSemantics = "${receipt.name}. ${formatDateForAccessibility(receipt.createdAt)}"
     Card(
         colors = if (selected) {
             CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)

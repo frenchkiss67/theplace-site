@@ -45,6 +45,7 @@ import com.theplace.receiptscanner.resources.restore_failed
 import com.theplace.receiptscanner.resources.restore_success
 import com.theplace.receiptscanner.resources.scan_cancelled
 import com.theplace.receiptscanner.resources.scan_error
+import com.theplace.receiptscanner.resources.scan_save_failed
 import com.theplace.receiptscanner.resources.selection_share_label
 import com.theplace.receiptscanner.ui.OnboardingScreen
 import com.theplace.receiptscanner.ui.ReceiptDetailScreen
@@ -119,14 +120,23 @@ private fun AppContent(
         val scannerRef = remember { object { var value: DocumentScannerLauncher? = null } }
         val scanner = rememberDocumentScannerLauncher { outcome ->
             when (outcome) {
-                is ScanOutcome.Success -> viewModel.saveScan(outcome.result) { saved ->
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            getString(Res.string.receipt_saved, saved.name)
-                        )
+                is ScanOutcome.Success -> viewModel.saveScan(outcome.result) { saveResult ->
+                    when (saveResult) {
+                        is ReceiptViewModel.SaveScanOutcome.Success -> {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    getString(Res.string.receipt_saved, saveResult.receipt.name)
+                                )
+                            }
+                            // Mode rafale : enchaîne immédiatement sur un nouveau scan.
+                            if (continuousScan) scannerRef.value?.launch()
+                        }
+                        is ReceiptViewModel.SaveScanOutcome.Failure -> scope.launch {
+                            snackbarHostState.showSnackbar(
+                                getString(Res.string.scan_save_failed, saveResult.message)
+                            )
+                        }
                     }
-                    // Mode rafale : enchaîne immédiatement sur un nouveau scan.
-                    if (continuousScan) scannerRef.value?.launch()
                 }
                 is ScanOutcome.Cancelled -> scope.launch {
                     snackbarHostState.showSnackbar(getString(Res.string.scan_cancelled))

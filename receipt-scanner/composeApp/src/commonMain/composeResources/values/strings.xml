@@ -121,6 +121,7 @@
 
     <string name="scan_error">Impossible de démarrer le scanner : %1$s</string>
     <string name="scan_cancelled">Scan annulé</string>
+    <string name="scan_save_failed">Archivage impossible : %1$s</string>
     <string name="receipt_saved">« %1$s » archivé</string>
     <string name="receipt_deleted">« %1$s » supprimé</string>
 

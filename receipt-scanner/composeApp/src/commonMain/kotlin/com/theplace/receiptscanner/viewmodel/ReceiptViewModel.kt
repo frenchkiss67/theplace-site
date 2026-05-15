@@ -40,11 +40,21 @@ class ReceiptViewModel(
     /** Identifiants des tickets sélectionnés en mode multi-sélection. */
     val selection: StateFlow<Set<Long>> = _selection.asStateFlow()
 
-    fun saveScan(result: PlatformScanResult, onSaved: (Receipt) -> Unit) {
+    /** Issue d'un archivage : succès avec le ticket inséré, ou échec (disque plein, fichier corrompu…). */
+    sealed interface SaveScanOutcome {
+        data class Success(val receipt: Receipt) : SaveScanOutcome
+        data class Failure(val message: String) : SaveScanOutcome
+    }
+
+    fun saveScan(result: PlatformScanResult, onSaved: (SaveScanOutcome) -> Unit) {
         viewModelScope.launch {
-            val saved = repository.addFromScan(result)
-            onSaved(saved)
-            runOcrInBackground(saved)
+            val outcome: SaveScanOutcome = try {
+                SaveScanOutcome.Success(repository.addFromScan(result))
+            } catch (t: Throwable) {
+                SaveScanOutcome.Failure(t.message ?: "Erreur inconnue")
+            }
+            onSaved(outcome)
+            if (outcome is SaveScanOutcome.Success) runOcrInBackground(outcome.receipt)
         }
     }
 

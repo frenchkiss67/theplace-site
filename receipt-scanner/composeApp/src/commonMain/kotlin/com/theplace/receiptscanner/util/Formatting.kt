@@ -33,6 +33,39 @@ fun formatSize(bytes: Long): String = when {
 fun defaultReceiptName(epochMs: Long): String = "Ticket du ${formatDate(epochMs)}"
 
 /**
+ * Date verbeuse pour la lecture par TalkBack / VoiceOver, ex.
+ * « 14 mai 2026 à 10 h 32 ». Le format slash-deux-points est mal lu
+ * par les lecteurs d'écran.
+ */
+fun formatDateForAccessibility(
+    epochMs: Long,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+): String {
+    val dt = Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(zone)
+    val monthName = monthLongLabel(dt.monthNumber)
+    val hour = dt.hour
+    val minute = dt.minute.toString().padStart(2, '0')
+    return "${dt.dayOfMonth} $monthName ${dt.year} à $hour h $minute"
+}
+
+/** Libellé long FR d'un mois — pour la lecture vocale. */
+private fun monthLongLabel(month: Int): String = when (month) {
+    1 -> "janvier"
+    2 -> "février"
+    3 -> "mars"
+    4 -> "avril"
+    5 -> "mai"
+    6 -> "juin"
+    7 -> "juillet"
+    8 -> "août"
+    9 -> "septembre"
+    10 -> "octobre"
+    11 -> "novembre"
+    12 -> "décembre"
+    else -> "?"
+}
+
+/**
  * Format monétaire « 12,30 € ». Centimes → euros, séparateur décimal FR,
  * deux décimales obligatoires. `null` → chaîne vide.
  */
