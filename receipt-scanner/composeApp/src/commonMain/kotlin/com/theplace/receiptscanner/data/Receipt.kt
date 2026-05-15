@@ -16,4 +16,6 @@ data class Receipt(
     val createdAt: Long,
     val category: ReceiptCategory? = null,
     val totalCents: Long? = null,
+    /** Texte extrait par OCR (peut être `null` tant que la passe n'a pas tourné). */
+    val extractedText: String? = null,
 )

@@ -75,6 +75,16 @@ class SortOptionTest {
     }
 
     @Test
+    fun filteredByQuery_also_matches_extractedText() {
+        val list = listOf(
+            receipt(id = 1, name = "Ticket A").copy(extractedText = "CARREFOUR\nBaguette\nTotal 1,20"),
+            receipt(id = 2, name = "Ticket B").copy(extractedText = "AUCHAN\nLait"),
+        )
+        assertEquals(listOf(1L), list.filteredByQuery("baguette").map { it.id })
+        assertEquals(listOf(2L), list.filteredByQuery("LAIT").map { it.id })
+    }
+
+    @Test
     fun filteredBy_All_returns_everything() {
         assertEquals(all, all.filteredBy(CategoryFilter.All))
     }

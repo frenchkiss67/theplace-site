@@ -6,10 +6,12 @@ import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.AndroidAppLockSettings
 import com.theplace.receiptscanner.platform.AndroidBackupSettings
 import com.theplace.receiptscanner.platform.AndroidPdfActions
+import com.theplace.receiptscanner.platform.AndroidTextRecognizer
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PdfStorage
+import com.theplace.receiptscanner.platform.TextRecognizer
 
 /**
  * DI minimale côté Android : un seul Repository, une seule instance
@@ -30,4 +32,7 @@ class ServiceLocator(context: Context) {
 
     val backupSettings: BackupSettings =
         AndroidBackupSettings(appContext)
+
+    val textRecognizer: TextRecognizer =
+        AndroidTextRecognizer(appContext)
 }

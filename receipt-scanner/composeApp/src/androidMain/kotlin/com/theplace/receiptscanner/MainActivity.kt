@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.PdfActions
+import com.theplace.receiptscanner.platform.TextRecognizer
 import com.theplace.receiptscanner.viewmodel.ReceiptViewModel
 
 // FragmentActivity nécessaire pour BiometricPrompt (cf. AppLock.android.kt).
@@ -24,7 +25,7 @@ class MainActivity : FragmentActivity() {
 
     private val viewModel: ReceiptViewModel by viewModels {
         val services = (application as ReceiptScannerApp).services
-        ReceiptViewModelFactory(services.repository, services.pdfActions)
+        ReceiptViewModelFactory(services.repository, services.pdfActions, services.textRecognizer)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,8 +56,9 @@ private fun rememberDynamicColorScheme(): ColorScheme? {
 private class ReceiptViewModelFactory(
     private val repository: ReceiptRepository,
     private val pdfActions: PdfActions,
+    private val textRecognizer: TextRecognizer,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReceiptViewModel(repository, pdfActions) as T
+        ReceiptViewModel(repository, pdfActions, textRecognizer) as T
 }

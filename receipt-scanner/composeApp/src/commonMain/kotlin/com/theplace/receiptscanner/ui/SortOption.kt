@@ -22,11 +22,17 @@ fun List<Receipt>.sortedBy(option: SortOption): List<Receipt> = when (option) {
     SortOption.SizeDesc -> sortedByDescending { it.sizeBytes }
 }
 
-/** Filtre insensible à la casse sur le nom du ticket. Chaîne vide = pas de filtre. */
+/**
+ * Filtre insensible à la casse sur le nom du ticket et le texte extrait
+ * par OCR (si présent). Chaîne vide = pas de filtre.
+ */
 fun List<Receipt>.filteredByQuery(query: String): List<Receipt> {
     val trimmed = query.trim()
     if (trimmed.isEmpty()) return this
-    return filter { it.name.contains(trimmed, ignoreCase = true) }
+    return filter { receipt ->
+        receipt.name.contains(trimmed, ignoreCase = true) ||
+            (receipt.extractedText?.contains(trimmed, ignoreCase = true) == true)
+    }
 }
 
 /** Filtre catégorie modélisant les 3 cas distincts : tout / non classé / une catégorie. */
