@@ -68,22 +68,29 @@ receipt-scanner/
     └── src/
         ├── commonMain/
         │   ├── kotlin/com/theplace/receiptscanner/
-        │   │   ├── App.kt                          # NavHost + SnackbarHost + BiometricGate
-        │   │   ├── data/                           # Receipt + ReceiptCategory + ReceiptRepository
+        │   │   ├── App.kt                          # NavHost + SnackbarHost +
+        │   │   │                                   #   BiometricGate + OnboardingGate
+        │   │   ├── data/                           # Receipt + ReceiptCategory + Repository
+        │   │   │                                   #   + RestoreOutcome
         │   │   ├── platform/                       # expect : scanner, PdfActions, PdfPreview,
-        │   │   │                                   #          PdfThumbnail, ExportTarget,
-        │   │   │                                   #          BackHandler, AppLockSettings,
-        │   │   │                                   #          BackupSettings, TextRecognizer
-        │   │   ├── ui/                             # ListScreen + DetailScreen + SortOption +
+        │   │   │                                   #   PdfThumbnail, ExportTarget, DocumentExport,
+        │   │   │                                   #   BackHandler, AppLockSettings,
+        │   │   │                                   #   BackupSettings, OnboardingSettings,
+        │   │   │                                   #   ScanPreferences, TextRecognizer,
+        │   │   │                                   #   NotificationPermissionRequester
+        │   │   ├── ui/                             # ListScreen + DetailScreen + StatsScreen
+        │   │   │                                   #   + OnboardingScreen + SortOption +
         │   │   │                                   #   CategoryLabels + theme/
-        │   │   ├── util/                           # Formatting (date/amount), Clock,
-        │   │   │                                   #   ReceiptInfoExtractor (OCR heuristics),
-        │   │   │                                   #   Warranty (end + days left)
+        │   │   ├── util/                           # Formatting (date / a11y date / amount),
+        │   │   │                                   #   Clock, ReceiptInfoExtractor (OCR + auto-cat),
+        │   │   │                                   #   Warranty, Stats, Csv
         │   │   └── viewmodel/                      # ReceiptViewModel
         │   ├── composeResources/values/strings.xml # Strings FR (par défaut)
         │   └── composeResources/values-en/strings.xml # Strings EN
-        ├── commonTest/                             # Tests JVM partagés (Formatting, ViewModel,
-        │                                           #   SortOption, ReceiptInfoExtractor, Warranty)
+        ├── commonTest/                             # Tests JVM partagés (Formatting,
+        │                                           #   ViewModel, SortOption,
+        │                                           #   ReceiptInfoExtractor, Warranty,
+        │                                           #   Stats, Csv)
         ├── androidUnitTest/                        # Robolectric : Room DAO + PdfStorage
         └── androidMain/
             ├── AndroidManifest.xml                 # Activity + FileProvider + POST_NOTIFICATIONS
@@ -95,7 +102,9 @@ receipt-scanner/
             │   │                                   #   1→2 catégories, 2→3 OCR, 3→4 garanties)
             │   ├── platform/                       # actual ML Kit (scan + OCR), PdfActions,
             │   │                                   #   PdfStorage, ThumbnailCache, BackupSettings,
-            │   │                                   #   AppLock (BiometricPrompt + session)
+            │   │                                   #   AppLock, OnboardingSettings,
+            │   │                                   #   ScanPreferences, DocumentExport,
+            │   │                                   #   NotificationPermission
             │   └── work/                           # BackupWorker, WarrantyWorker, Schedulers,
             │                                       #   WarrantyNotifier (channel + notif)
             └── res/                                # Manifest strings, themes, file_paths, backup, icône
@@ -146,12 +155,29 @@ Et en arrière-plan, sans bloquer l'utilisateur :
         ↓
 Android actual : PdfRenderer → Bitmap → ML Kit Text Recognition
         ↓
-[ReceiptInfoExtractor.extractTotalCents(text)]  → pré-remplit le montant
+[ReceiptInfoExtractor]
+  - extractMerchantName  → remplace le nom par défaut si encore générique
+  - extractTotalCents    → pré-remplit le montant
+  - extractPurchasedAtMs → pré-remplit la date d'achat (déclenche garanties)
+  - categoryForMerchant  → pré-remplit la catégorie si non saisie
         ↓
-[ReceiptRepository.update(receipt.copy(extractedText, totalCents))]
+[ReceiptRepository.update(receipt.copy(extractedText, totalCents,
+                                       purchasedAt, category, name))]
         ↓
 La recherche en commonMain (`filteredByQuery`) couvre aussi `extractedText`.
 ```
+
+Autres flux :
+
+- **Restauration** : SAF `OpenDocumentTree` → `restoreFromFolder` énumère
+  les PDFs via `DocumentsContract`, copie ceux dont le `fileName` n'est
+  pas déjà en base, count pages via `PdfRenderer`, insert Room.
+- **Mode rafale** : `SaveScanOutcome.Success` → relance immédiate du
+  scanner via un holder pour éviter la self-reference Kotlin.
+- **Stats** : route `stats`, `Canvas` Compose pour donut + bar chart 12
+  mois ; helpers `statsByCategoryForMonth` / `statsByLast12Months`.
+- **Export CSV** : `buildReceiptsCsv` → SAF `CreateDocument("text/csv")`
+  → `DocumentWriter.writeText` UTF-8 sur `Dispatchers.IO`.
 
 ### Stockage
 
@@ -164,11 +190,13 @@ La recherche en commonMain (`filteredByQuery`) couvre aussi `extractedText`.
 - **Base** : `receipts.db` (Room v4) — table `receipts` (`id`, `name`,
   `fileName`, `pageCount`, `sizeBytes`, `createdAt`, `category`,
   `totalCents`, `extractedText`, `purchasedAt`, `warrantyMonths`).
-- **Préférences** : 3 fichiers SharedPreferences distincts :
+- **Préférences** : 5 fichiers SharedPreferences distincts :
   - `app_lock` : flag biométrie activée.
   - `backup_settings` : URI du dossier de backup auto + set des
     fileNames déjà sauvegardés.
   - `warranty_notif` : set des IDs déjà notifiés J-30 (anti-spam).
+  - `onboarding` : flag « tutoriel premier lancement vu ».
+  - `scan_prefs` : flag mode rafale.
 - **Partage externe** : authority `${applicationId}.fileprovider` mappée
   sur `files-path name="receipts"` dans `res/xml/file_paths.xml`.
 - **Export utilisateur** : copies ponctuelles ou périodiques (worker)

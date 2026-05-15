@@ -862,6 +862,143 @@ concurrent de la scène ne traite vraiment ce cas.
 - ⚠️ Une seule fréquence J-30. Évolutions possibles : configurable
   (J-60, J-7 second rappel, etc.), à introduire avec un setting dédié.
 
+**Note POST_NOTIFICATIONS runtime** : la permission est désormais
+demandée à l'exécution via `NotificationPermissionRequester`
+(`ActivityResultContracts.RequestPermission`) au premier `setWarrantyMonths`
+non null. No-op sur API < 33 ou si déjà accordée — si refusée, l'app
+ne réinsiste pas (l'utilisateur peut toujours l'activer via les
+réglages système).
+
+### ADR-14 — Vignettes PDF dans la liste
+
+**Contexte** : l'icône `PictureAsPdf` générique sur chaque carte ne
+distinguait pas un Carrefour d'un ticket de pharmacie. Le ténor du
+genre (Adobe Scan, Genius Scan) montre toujours une vignette.
+
+**Décision** : `@Composable expect fun PdfThumbnail(receipt, modifier)`.
+Android `actual` rend la page 0 du PDF (~400 px de large) via
+`PdfRenderer`, persiste un PNG dans `cacheDir/thumbs/<fileName>.png`,
+lectures suivantes hit le cache. `AndroidReceiptRepository.delete`
+nettoie le PNG associé. Placeholder `PictureAsPdf` affiché le temps
+du rendu / si PDF illisible.
+
+**Conséquences** : ✅ visuel cohérent avec les concurrents, coût
+linéaire à la première composition de chaque carte. ⚠️ Le système peut
+purger `cacheDir` sous pression — les vignettes sont re-rendues à la
+prochaine ouverture, OK.
+
+### ADR-15 — Onboarding 2 écrans au premier lancement
+
+**Contexte** : la fonctionnalité long-press → sélection multiple est
+totalement invisible si l'utilisateur ne l'a jamais expérimentée.
+
+**Décision** : `OnboardingSettings` (interface commune + SharedPreferences
+côté Android) avec `completed: StateFlow<Boolean>`. `App.kt` gate sur
+ce flag avant d'afficher le `NavHost`. `OnboardingScreen` utilise
+`HorizontalPager` (Material 3 1.7) avec 2 pages : « Scannez vos
+tickets » et « Organisez en lot ». Boutons Skip / Suivant / C'est
+parti, indicateur de page custom.
+
+**Conséquences** : ✅ découvrabilité du long-press. ⚠️ Pas de relance
+manuelle de l'onboarding depuis les Réglages — option future si besoin.
+
+### ADR-16 — App lock biométrique avec session process-scoped
+
+**Contexte** : les tickets contiennent des données perso (lieux,
+horaires, parfois CB tronquée). Pas de chiffrement KeyStore en v1 ;
+on se limite à un gate d'authentification à l'ouverture.
+
+**Décision** :
+1. `MainActivity` hérite de `FragmentActivity` (requis par
+   `BiometricPrompt`).
+2. `AppLockSettings` (interface) + `AndroidAppLockSettings`
+   (SharedPreferences `app_lock`) avec `enabled` + `isBiometricAvailable`
+   (`BIOMETRIC_WEAK | DEVICE_CREDENTIAL` via `BiometricManager`).
+3. `BiometricGate` (expect/actual) : prompt automatique au premier
+   rendu si `enabled`, écran de verrouillage avec bouton retry si
+   l'utilisateur annule. `AppLockSession` (`object` Android) garde
+   `unlocked: Boolean` process-scoped — survit aux rotations, reset
+   au process death.
+4. Toggle dans le menu overflow → AlertDialog Réglages.
+
+**Conséquences** : ✅ pas de re-auth après une rotation, oui après un
+kill système. ⚠️ Pas de timeout d'inactivité — improvement futur.
+
+### ADR-17 — Catégories, montant et total mensuel
+
+**Décision** :
+1. `Receipt` gagne `category: ReceiptCategory?` (enum stable —
+   Groceries, Restaurant, Fuel, Health, Shopping, Other) et
+   `totalCents: Long?` (montant en centimes). Migration Room v1→v2.
+2. `ReceiptViewModel.setCategory` / `setAmount` génériques via
+   `repository.update(receipt)` (méthode ajoutée à l'interface).
+3. UI : `CategoryFilter` sealed (All / Uncategorised / Of) + chips
+   dans la liste, `DropdownMenu` + `OutlinedTextField` parse-tolérant
+   dans le détail. Helper `formatAmount` (« 12,30 € » FR) et
+   `parseAmountCents`.
+4. Helpers `statsByCategoryForMonth` / `statsByLast12Months` et
+   `monthTotalCents` pour le récap mensuel affiché dans le header de
+   la liste.
+
+**Conséquences** : ✅ vraie valeur ajoutée vs un simple archivage.
+⚠️ Saisie manuelle quand l'OCR ne détecte pas — atténué par ADR-12.
+
+### ADR-18 — Statistiques (donut + bar chart 12 mois)
+
+**Contexte** : « combien j'ai dépensé en restau ce mois ? » devient
+visuel.
+
+**Décision** : `StatsScreen` accessible depuis l'overflow menu, route
+NavHost `stats` avec mêmes transitions que `detail`. Donut chart par
+catégorie pour le mois courant + bar chart 12 derniers mois, rendus
+purement en `Canvas` Compose (pas de lib tierce — moins de code et
+zéro maintenance externe). Palette stable par catégorie via Material 3
+tonal.
+
+**Conséquences** : ✅ aucune dépendance ajoutée. ⚠️ Pas d'interaction
+(drill-down sur une tranche, etc.) — option future.
+
+### ADR-19 — Export CSV via SAF CreateDocument
+
+**Décision** :
+1. `buildReceiptsCsv` (commonMain, pur) produit du RFC4180 minimal :
+   `id, dateScan, dateAchat, nom, categorie, montant, fichier`,
+   échappe les virgules / guillemets / sauts de ligne.
+2. `expect class PlatformDocumentTarget` + composable
+   `rememberCreateDocumentLauncher(mimeType, defaultName, onResult)`
+   (Android : `ActivityResultContracts.CreateDocument`).
+3. `DocumentWriter.writeText(target, content)` (suspend) écrit en UTF-8
+   sur `Dispatchers.IO` via `ContentResolver.openOutputStream(uri, "wt")`.
+
+**Conséquences** : ✅ CSV ouvrable directement dans Excel / Numbers /
+LibreOffice. ⚠️ Catégories exportées sous leur `name` enum (« Groceries »
+plutôt que « Courses ») pour stabilité — l'utilisateur peut relabéliser
+en aval.
+
+### ADR-20 — Mode rafale + auto-catégorisation par marchand
+
+**Décision** :
+1. `ScanPreferences.continuousScan` (SharedPreferences `scan_prefs`).
+   Si activé, `App.kt` relance `scanner.launch()` après chaque
+   `SaveScanOutcome.Success`. Self-reference de la lambda contournée
+   via un `object holder { var value: DocumentScannerLauncher? }`.
+2. `ReceiptInfoExtractor.categoryForMerchant` mappe ~50 enseignes FR
+   fréquentes vers `ReceiptCategory` (regex insensibles à la casse).
+   Appliqué dans `runOcrInBackground` si l'utilisateur n'a pas déjà
+   classé le ticket.
+
+**Conséquences** : ✅ scan de 10 tickets en série sans repasser par la
+liste. ✅ La plupart des tickets perso sont catégorisés sans aucune
+action utilisateur. ⚠️ Table FR-centrée — à enrichir / rendre
+configurable pour d'autres marchés.
+
+**Note restore SAF (extension d'ADR-11)** : `ReceiptRepository.restoreFromFolder`
+réimporte les PDFs d'un dossier de backup choisi par l'utilisateur,
+idempotent (skip les `fileName` déjà présents). Énumération via
+`DocumentsContract.buildChildDocumentsUriUsingTree`, copie dans
+`filesDir/receipts/`, count de pages via `PdfRenderer`, insert Room
+avec `displayName` comme nom et `lastModified` comme `createdAt`.
+
 ---
 
 ## 9. Gestion des erreurs
