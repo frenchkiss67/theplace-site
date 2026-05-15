@@ -114,6 +114,9 @@ import com.theplace.receiptscanner.resources.settings_backup_pick
 import com.theplace.receiptscanner.resources.settings_lock_description
 import com.theplace.receiptscanner.resources.settings_lock_label
 import com.theplace.receiptscanner.resources.settings_lock_unavailable
+import com.theplace.receiptscanner.resources.settings_restore_description
+import com.theplace.receiptscanner.resources.settings_restore_label
+import com.theplace.receiptscanner.resources.settings_restore_pick
 import com.theplace.receiptscanner.resources.settings_title
 import com.theplace.receiptscanner.resources.selection_clear
 import com.theplace.receiptscanner.resources.selection_count
@@ -140,6 +143,7 @@ fun ReceiptListScreen(
     backupFolderLabel: String,
     onToggleBackup: (Boolean) -> Unit,
     onPickBackupFolder: () -> Unit,
+    onPickRestoreFolder: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
     onItemClick: (Receipt) -> Unit,
@@ -344,6 +348,10 @@ fun ReceiptListScreen(
             backupFolderLabel = backupFolderLabel,
             onToggleBackup = onToggleBackup,
             onPickBackupFolder = onPickBackupFolder,
+            onPickRestoreFolder = {
+                settingsOpen = false
+                onPickRestoreFolder()
+            },
             onDismiss = { settingsOpen = false },
         )
     }
@@ -656,6 +664,7 @@ private fun SettingsDialog(
     backupFolderLabel: String,
     onToggleBackup: (Boolean) -> Unit,
     onPickBackupFolder: () -> Unit,
+    onPickRestoreFolder: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -728,6 +737,20 @@ private fun SettingsDialog(
                             stringResource(Res.string.settings_backup_pick)
                         },
                     )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                // --- Restauration depuis un dossier ---
+                Text(
+                    text = stringResource(Res.string.settings_restore_label),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(Res.string.settings_restore_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onPickRestoreFolder) {
+                    Text(stringResource(Res.string.settings_restore_pick))
                 }
             }
         },

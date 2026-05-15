@@ -34,6 +34,13 @@
     <string name="settings_backup_folder_label">Folder: %1$s</string>
     <string name="settings_backup_folder_missing">No folder configured</string>
 
+    <string name="settings_restore_label">Restore from a folder</string>
+    <string name="settings_restore_description">Re-imports PDFs from a backup folder (idempotent).</string>
+    <string name="settings_restore_pick">Pick folder to restore</string>
+    <string name="restore_success">%1$d receipt(s) restored, %2$d skipped</string>
+    <string name="restore_empty">No new receipt to restore</string>
+    <string name="restore_failed">Restore failed: %1$s</string>
+
     <string name="selection_count">%1$d selected</string>
     <string name="selection_clear">Exit selection</string>
     <string name="selection_all">Select all</string>

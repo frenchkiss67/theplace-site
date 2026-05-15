@@ -48,6 +48,13 @@
     <string name="settings_backup_folder_label">Dossier : %1$s</string>
     <string name="settings_backup_folder_missing">Aucun dossier configuré</string>
 
+    <string name="settings_restore_label">Restaurer depuis un dossier</string>
+    <string name="settings_restore_description">Réimporte les PDFs d'un dossier de backup (idempotent).</string>
+    <string name="settings_restore_pick">Choisir le dossier à restaurer</string>
+    <string name="restore_success">%1$d ticket(s) restauré(s), %2$d ignoré(s)</string>
+    <string name="restore_empty">Aucun nouveau ticket à restaurer</string>
+    <string name="restore_failed">Restauration impossible : %1$s</string>
+
     <string name="category_label">Catégorie</string>
     <string name="category_none">Sans catégorie</string>
     <string name="category_all">Toutes</string>

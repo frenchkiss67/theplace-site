@@ -1,7 +1,14 @@
 package com.theplace.receiptscanner.data
 
+import com.theplace.receiptscanner.platform.PlatformExportTarget
 import com.theplace.receiptscanner.platform.PlatformScanResult
 import kotlinx.coroutines.flow.Flow
+
+/** Issue d'une opération `restoreFromFolder`. */
+sealed interface RestoreOutcome {
+    data class Success(val imported: Int, val skipped: Int) : RestoreOutcome
+    data class Failure(val message: String, val imported: Int = 0) : RestoreOutcome
+}
 
 /**
  * Interface commune au-dessus de la persistance.
@@ -24,4 +31,12 @@ interface ReceiptRepository {
     suspend fun update(receipt: Receipt)
 
     suspend fun delete(receipt: Receipt)
+
+    /**
+     * Réimporte les PDFs d'un dossier SAF dans la base. Les `fileName`
+     * déjà présents sont ignorés (idempotent). Utile après un changement
+     * de téléphone ou un wipe : on pointe vers le dossier de backup
+     * choisi via `BackupSettings` et l'app récupère ses tickets.
+     */
+    suspend fun restoreFromFolder(target: PlatformExportTarget): RestoreOutcome
 }

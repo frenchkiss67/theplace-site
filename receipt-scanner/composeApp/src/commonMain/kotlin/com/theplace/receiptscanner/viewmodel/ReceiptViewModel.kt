@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.theplace.receiptscanner.data.Receipt
 import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.data.ReceiptRepository
+import com.theplace.receiptscanner.data.RestoreOutcome
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PlatformExportTarget
@@ -143,6 +144,13 @@ class ReceiptViewModel(
             items.forEach { repository.delete(it) }
             _selection.value = emptySet()
             onDone(items.size)
+        }
+    }
+
+    /** Réimporte les PDFs d'un dossier SAF. Idempotent (skip si déjà présent). */
+    fun restoreFromFolder(target: PlatformExportTarget, onDone: (RestoreOutcome) -> Unit) {
+        viewModelScope.launch {
+            onDone(repository.restoreFromFolder(target))
         }
     }
 

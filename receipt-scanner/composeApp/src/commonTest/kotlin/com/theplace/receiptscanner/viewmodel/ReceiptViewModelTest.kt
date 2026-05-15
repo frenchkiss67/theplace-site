@@ -3,6 +3,7 @@ package com.theplace.receiptscanner.viewmodel
 import com.theplace.receiptscanner.data.Receipt
 import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.data.ReceiptRepository
+import com.theplace.receiptscanner.data.RestoreOutcome
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PlatformExportTarget
@@ -253,6 +254,13 @@ private class FakeRepository : ReceiptRepository {
     override suspend fun delete(receipt: Receipt) {
         deleted += receipt
         source.update { current -> current.filterNot { it.id == receipt.id } }
+    }
+
+    var restoreResult: RestoreOutcome = RestoreOutcome.Success(imported = 0, skipped = 0)
+    val restoreCalls = mutableListOf<PlatformExportTarget>()
+    override suspend fun restoreFromFolder(target: PlatformExportTarget): RestoreOutcome {
+        restoreCalls += target
+        return restoreResult
     }
 }
 

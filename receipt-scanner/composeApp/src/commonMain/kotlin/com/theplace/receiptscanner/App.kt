@@ -16,6 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.theplace.receiptscanner.data.RestoreOutcome
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
@@ -23,6 +24,7 @@ import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.ScanOutcome
 import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
 import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
+import com.theplace.receiptscanner.platform.rememberNotificationPermissionRequester
 import com.theplace.receiptscanner.resources.Res
 import com.theplace.receiptscanner.resources.export_done
 import com.theplace.receiptscanner.resources.export_failed
@@ -30,6 +32,9 @@ import com.theplace.receiptscanner.resources.export_partial
 import com.theplace.receiptscanner.resources.receipt_deleted
 import com.theplace.receiptscanner.resources.receipt_saved
 import com.theplace.receiptscanner.resources.receipts_deleted_many
+import com.theplace.receiptscanner.resources.restore_empty
+import com.theplace.receiptscanner.resources.restore_failed
+import com.theplace.receiptscanner.resources.restore_success
 import com.theplace.receiptscanner.resources.scan_cancelled
 import com.theplace.receiptscanner.resources.scan_error
 import com.theplace.receiptscanner.resources.selection_share_label
@@ -105,6 +110,27 @@ private fun AppContent(
             if (target != null) backupSettings.setFolder(target)
         }
 
+        // SAF folder picker pour restaurer les PDFs depuis un dossier de backup.
+        val restoreLauncher = rememberExportFolderLauncher { target ->
+            if (target == null) return@rememberExportFolderLauncher
+            viewModel.restoreFromFolder(target) { result ->
+                scope.launch {
+                    val message = when (result) {
+                        is RestoreOutcome.Success -> if (result.imported == 0 && result.skipped == 0) {
+                            getString(Res.string.restore_empty)
+                        } else {
+                            getString(Res.string.restore_success, result.imported, result.skipped)
+                        }
+                        is RestoreOutcome.Failure -> getString(Res.string.restore_failed, result.message)
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
+        }
+
+        // Permission notifications (Android 13+) demandée à la 1re garantie configurée.
+        val notifPermission = rememberNotificationPermissionRequester()
+
         // SAF folder picker pour l'export multi-tickets.
         val exportLauncher = rememberExportFolderLauncher { target ->
             if (target == null) return@rememberExportFolderLauncher
@@ -152,6 +178,7 @@ private fun AppContent(
                     backupFolderLabel = backupFolderLabel,
                     onToggleBackup = backupSettings::setEnabled,
                     onPickBackupFolder = { backupFolderLauncher.launch() },
+                    onPickRestoreFolder = { restoreLauncher.launch() },
                     snackbarHostState = snackbarHostState,
                     onScanClicked = { scanner.launch() },
                     onItemClick = { receipt ->
@@ -229,7 +256,11 @@ private fun AppContent(
                         onCategoryChange = viewModel::setCategory,
                         onAmountChange = viewModel::setAmount,
                         onPurchasedAtChange = viewModel::setPurchasedAt,
-                        onWarrantyMonthsChange = viewModel::setWarrantyMonths,
+                        onWarrantyMonthsChange = { r, months ->
+                            viewModel.setWarrantyMonths(r, months)
+                            // Première garantie activée → demande la permission notif.
+                            if (months != null) notifPermission.requestIfNeeded()
+                        },
                     )
                 }
             }
