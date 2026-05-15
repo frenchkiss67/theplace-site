@@ -20,9 +20,11 @@ import com.theplace.receiptscanner.data.RestoreOutcome
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
+import com.theplace.receiptscanner.platform.DocumentScannerLauncher
 import com.theplace.receiptscanner.platform.DocumentWriter
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.OnboardingSettings
+import com.theplace.receiptscanner.platform.ScanPreferences
 import com.theplace.receiptscanner.platform.ScanOutcome
 import com.theplace.receiptscanner.platform.rememberCreateDocumentLauncher
 import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
@@ -71,6 +73,7 @@ fun App(
     backupSettings: BackupSettings,
     onboarding: OnboardingSettings,
     documentWriter: DocumentWriter,
+    scanPreferences: ScanPreferences,
     dynamicColorScheme: ColorScheme? = null,
 ) {
     ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
@@ -85,6 +88,7 @@ fun App(
                 appLock = appLock,
                 backupSettings = backupSettings,
                 documentWriter = documentWriter,
+                scanPreferences = scanPreferences,
             )
         }
     }
@@ -96,6 +100,7 @@ private fun AppContent(
     appLock: AppLockSettings,
     backupSettings: BackupSettings,
     documentWriter: DocumentWriter,
+    scanPreferences: ScanPreferences,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,7 +112,11 @@ private fun AppContent(
     val lockEnabled by appLock.enabled.collectAsState()
     val backupEnabled by backupSettings.enabled.collectAsState()
     val backupFolderLabel by backupSettings.folderLabel.collectAsState()
+    val continuousScan by scanPreferences.continuousScan.collectAsState()
 
+        // `scannerRef` permet à la lambda de se référencer elle-même pour le
+        // mode rafale (relance du scanner après chaque scan réussi).
+        val scannerRef = remember { object { var value: DocumentScannerLauncher? = null } }
         val scanner = rememberDocumentScannerLauncher { outcome ->
             when (outcome) {
                 is ScanOutcome.Success -> viewModel.saveScan(outcome.result) { saved ->
@@ -116,6 +125,8 @@ private fun AppContent(
                             getString(Res.string.receipt_saved, saved.name)
                         )
                     }
+                    // Mode rafale : enchaîne immédiatement sur un nouveau scan.
+                    if (continuousScan) scannerRef.value?.launch()
                 }
                 is ScanOutcome.Cancelled -> scope.launch {
                     snackbarHostState.showSnackbar(getString(Res.string.scan_cancelled))
@@ -127,6 +138,7 @@ private fun AppContent(
                 }
             }
         }
+        scannerRef.value = scanner
 
         // SAF folder picker pour la configuration du dossier de backup auto.
         val backupFolderLauncher = rememberExportFolderLauncher { target ->
@@ -220,6 +232,8 @@ private fun AppContent(
                     onToggleBackup = backupSettings::setEnabled,
                     onPickBackupFolder = { backupFolderLauncher.launch() },
                     onPickRestoreFolder = { restoreLauncher.launch() },
+                    continuousScan = continuousScan,
+                    onToggleContinuousScan = scanPreferences::setContinuousScan,
                     onOpenStats = { navController.navigate(ROUTE_STATS) },
                     onExportCsv = { csvLauncher.launch() },
                     snackbarHostState = snackbarHostState,

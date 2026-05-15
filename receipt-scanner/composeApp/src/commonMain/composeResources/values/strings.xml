@@ -51,6 +51,9 @@
     <string name="settings_restore_label">Restaurer depuis un dossier</string>
     <string name="settings_restore_description">Réimporte les PDFs d'un dossier de backup (idempotent).</string>
     <string name="settings_restore_pick">Choisir le dossier à restaurer</string>
+
+    <string name="settings_continuous_label">Mode rafale</string>
+    <string name="settings_continuous_description">Enchaîner automatiquement plusieurs scans sans repasser par la liste.</string>
     <string name="restore_success">%1$d ticket(s) restauré(s), %2$d ignoré(s)</string>
     <string name="restore_empty">Aucun nouveau ticket à restaurer</string>
     <string name="restore_failed">Restauration impossible : %1$s</string>

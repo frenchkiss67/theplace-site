@@ -8,6 +8,7 @@ import com.theplace.receiptscanner.platform.AndroidBackupSettings
 import com.theplace.receiptscanner.platform.AndroidDocumentWriter
 import com.theplace.receiptscanner.platform.AndroidOnboardingSettings
 import com.theplace.receiptscanner.platform.AndroidPdfActions
+import com.theplace.receiptscanner.platform.AndroidScanPreferences
 import com.theplace.receiptscanner.platform.AndroidTextRecognizer
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
@@ -15,6 +16,7 @@ import com.theplace.receiptscanner.platform.DocumentWriter
 import com.theplace.receiptscanner.platform.OnboardingSettings
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PdfStorage
+import com.theplace.receiptscanner.platform.ScanPreferences
 import com.theplace.receiptscanner.platform.TextRecognizer
 
 /**
@@ -45,4 +47,7 @@ class ServiceLocator(context: Context) {
 
     val documentWriter: DocumentWriter =
         AndroidDocumentWriter(appContext)
+
+    val scanPreferences: ScanPreferences =
+        AndroidScanPreferences(appContext)
 }

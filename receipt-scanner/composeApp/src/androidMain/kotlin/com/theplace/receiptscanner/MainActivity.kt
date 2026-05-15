@@ -39,6 +39,7 @@ class MainActivity : FragmentActivity() {
                 backupSettings = services.backupSettings,
                 onboarding = services.onboarding,
                 documentWriter = services.documentWriter,
+                scanPreferences = services.scanPreferences,
                 dynamicColorScheme = rememberDynamicColorScheme(),
             )
         }

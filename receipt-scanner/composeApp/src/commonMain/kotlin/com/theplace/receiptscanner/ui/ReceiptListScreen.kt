@@ -113,6 +113,8 @@ import com.theplace.receiptscanner.resources.settings_backup_folder_label
 import com.theplace.receiptscanner.resources.settings_backup_folder_missing
 import com.theplace.receiptscanner.resources.settings_backup_label
 import com.theplace.receiptscanner.resources.settings_backup_pick
+import com.theplace.receiptscanner.resources.settings_continuous_description
+import com.theplace.receiptscanner.resources.settings_continuous_label
 import com.theplace.receiptscanner.resources.settings_lock_description
 import com.theplace.receiptscanner.resources.settings_lock_label
 import com.theplace.receiptscanner.resources.settings_lock_unavailable
@@ -146,6 +148,8 @@ fun ReceiptListScreen(
     onToggleBackup: (Boolean) -> Unit,
     onPickBackupFolder: () -> Unit,
     onPickRestoreFolder: () -> Unit,
+    continuousScan: Boolean,
+    onToggleContinuousScan: (Boolean) -> Unit,
     onOpenStats: () -> Unit,
     onExportCsv: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -370,6 +374,8 @@ fun ReceiptListScreen(
                 settingsOpen = false
                 onPickRestoreFolder()
             },
+            continuousScan = continuousScan,
+            onToggleContinuousScan = onToggleContinuousScan,
             onDismiss = { settingsOpen = false },
         )
     }
@@ -683,6 +689,8 @@ private fun SettingsDialog(
     onToggleBackup: (Boolean) -> Unit,
     onPickBackupFolder: () -> Unit,
     onPickRestoreFolder: () -> Unit,
+    continuousScan: Boolean,
+    onToggleContinuousScan: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -769,6 +777,22 @@ private fun SettingsDialog(
                 )
                 TextButton(onClick = onPickRestoreFolder) {
                     Text(stringResource(Res.string.settings_restore_pick))
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                // --- Mode rafale ---
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(Res.string.settings_continuous_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(Res.string.settings_continuous_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = continuousScan, onCheckedChange = onToggleContinuousScan)
                 }
             }
         },

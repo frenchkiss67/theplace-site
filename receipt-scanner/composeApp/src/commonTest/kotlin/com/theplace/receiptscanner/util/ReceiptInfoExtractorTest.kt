@@ -1,5 +1,6 @@
 package com.theplace.receiptscanner.util
 
+import com.theplace.receiptscanner.data.ReceiptCategory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -112,5 +113,22 @@ class ReceiptInfoExtractorTest {
     fun extractPurchasedAtMs_rejects_year_out_of_century() {
         assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("14/05/1899", TimeZone.UTC))
         assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("14/05/2100", TimeZone.UTC))
+    }
+
+    @Test
+    fun categoryForMerchant_maps_known_brands() {
+        assertEquals(ReceiptCategory.Groceries, ReceiptInfoExtractor.categoryForMerchant("CARREFOUR CITY"))
+        assertEquals(ReceiptCategory.Groceries, ReceiptInfoExtractor.categoryForMerchant("AUCHAN"))
+        assertEquals(ReceiptCategory.Restaurant, ReceiptInfoExtractor.categoryForMerchant("McDonald's Bastille"))
+        assertEquals(ReceiptCategory.Fuel, ReceiptInfoExtractor.categoryForMerchant("TOTAL ENERGIES"))
+        assertEquals(ReceiptCategory.Health, ReceiptInfoExtractor.categoryForMerchant("Pharmacie du marché"))
+        assertEquals(ReceiptCategory.Shopping, ReceiptInfoExtractor.categoryForMerchant("FNAC Paris"))
+    }
+
+    @Test
+    fun categoryForMerchant_returns_null_when_unknown_or_blank() {
+        assertNull(ReceiptInfoExtractor.categoryForMerchant("Cordonnerie du coin"))
+        assertNull(ReceiptInfoExtractor.categoryForMerchant(""))
+        assertNull(ReceiptInfoExtractor.categoryForMerchant(null))
     }
 }

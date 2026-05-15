@@ -1,5 +1,6 @@
 package com.theplace.receiptscanner.util
 
+import com.theplace.receiptscanner.data.ReceiptCategory
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -14,6 +15,39 @@ object ReceiptInfoExtractor {
     private val totalKeyword = Regex("(?i)\\b(total|montant)\\b")
     private val amountPattern = Regex("(\\d+)[.,](\\d{2})\\s*€?")
     private val datePattern = Regex("(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{2,4})")
+
+    /**
+     * Table de correspondance marchand → catégorie. Volontairement
+     * conservatrice et France-centrée — l'utilisateur peut toujours
+     * corriger. Évolution possible : laisser l'utilisateur enrichir.
+     */
+    private val merchantToCategory: List<Pair<Regex, ReceiptCategory>> = listOf(
+        Regex(
+            "(?i)carrefour|auchan|leclerc|monoprix|intermarch|lidl|aldi|biocoop|naturalia|" +
+                "franprix|casino|picard|super\\s?u|simply|grand frais",
+        ) to ReceiptCategory.Groceries,
+        Regex(
+            "(?i)total\\s?energies|esso|shell|\\bbp\\b|elf|carrefour station|leclerc auto|" +
+                "intermarch[eé] auto|station service",
+        ) to ReceiptCategory.Fuel,
+        Regex(
+            "(?i)mcdo|mcdonald|burger king|kfc|quick|subway|pizza|sushi|restaurant|" +
+                "brasserie|caf[eé]|bistrot|boulangerie",
+        ) to ReceiptCategory.Restaurant,
+        Regex("(?i)pharmacie|parapharmacie|optique|opticien|laboratoire") to ReceiptCategory.Health,
+        Regex(
+            "(?i)fnac|darty|boulanger|zara|h&m|uniqlo|decathlon|ikea|leroy merlin|" +
+                "castorama|amazon|cdiscount|sephora|nocib[eé]|kiabi|gemo|jules",
+        ) to ReceiptCategory.Shopping,
+    )
+
+    /** Devine la catégorie d'un marchand. `null` si aucune règle ne match. */
+    fun categoryForMerchant(merchant: String?): ReceiptCategory? {
+        if (merchant.isNullOrBlank()) return null
+        return merchantToCategory.firstOrNull { (pattern, _) ->
+            pattern.containsMatchIn(merchant)
+        }?.second
+    }
 
     /**
      * Cherche un total dans le texte. Stratégie :

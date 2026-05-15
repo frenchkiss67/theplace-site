@@ -63,12 +63,15 @@ class ReceiptViewModel(
             val text = runCatching { recognizer.extractText(receipt) }.getOrNull() ?: return@launch
             val current = repository.findById(receipt.id) ?: return@launch
 
+            val merchant = ReceiptInfoExtractor.extractMerchantName(text)
             val proposedName = if (current.name == defaultReceiptName(current.createdAt)) {
-                ReceiptInfoExtractor.extractMerchantName(text) ?: current.name
+                merchant ?: current.name
             } else current.name
             val proposedTotal = current.totalCents ?: ReceiptInfoExtractor.extractTotalCents(text)
             val proposedPurchasedAt =
                 current.purchasedAt ?: ReceiptInfoExtractor.extractPurchasedAtMs(text)
+            val proposedCategory = current.category
+                ?: ReceiptInfoExtractor.categoryForMerchant(merchant ?: current.name)
 
             repository.update(
                 current.copy(
@@ -76,6 +79,7 @@ class ReceiptViewModel(
                     extractedText = text,
                     totalCents = proposedTotal,
                     purchasedAt = proposedPurchasedAt,
+                    category = proposedCategory,
                 )
             )
         }
