@@ -52,6 +52,18 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
         }
 
+        // Tests JVM Android (Robolectric) : Room en mémoire, PdfStorage, etc.
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("junit:junit:4.13.2")
+                implementation("org.robolectric:robolectric:4.13")
+                implementation("androidx.test:core:1.6.1")
+                implementation("androidx.test.ext:junit:1.2.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+            }
+        }
+
         androidMain.dependencies {
             // Activity Compose et runtime Android
             implementation("androidx.activity:activity-compose:1.9.2")
@@ -111,6 +123,13 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric a besoin de charger les ressources Android.
+            isIncludeAndroidResources = true
+        }
     }
 }
 
