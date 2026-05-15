@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
 import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
 import com.theplace.receiptscanner.platform.rememberNotificationPermissionRequester
 import com.theplace.receiptscanner.resources.Res
+import com.theplace.receiptscanner.resources.action_undo
 import com.theplace.receiptscanner.resources.detail_rerun_ocr_started
 import com.theplace.receiptscanner.resources.export_csv_default_name
 import com.theplace.receiptscanner.resources.export_csv_done
@@ -108,7 +110,8 @@ private fun AppContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val receipts by viewModel.receipts.collectAsState()
+    // visibleReceipts masque les tickets en cours de suppression différée.
+    val receipts by viewModel.visibleReceipts.collectAsState()
     val selection by viewModel.selection.collectAsState()
     val shareLabel = stringResource(Res.string.selection_share_label)
     val lockEnabled by appLock.enabled.collectAsState()
@@ -270,9 +273,13 @@ private fun AppContent(
                     onDelete = { receipt ->
                         viewModel.delete(receipt)
                         scope.launch {
-                            snackbarHostState.showSnackbar(
-                                getString(Res.string.receipt_deleted, receipt.name)
+                            val result = snackbarHostState.showSnackbar(
+                                message = getString(Res.string.receipt_deleted, receipt.name),
+                                actionLabel = getString(Res.string.action_undo),
                             )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.undoDelete(receipt.id)
+                            }
                         }
                     },
                     onOpen = viewModel::openPdf,
@@ -312,12 +319,16 @@ private fun AppContent(
                         onRename = viewModel::rename,
                         onDelete = { r ->
                             viewModel.delete(r)
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    getString(Res.string.receipt_deleted, r.name)
-                                )
-                            }
                             navController.popBackStack()
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = getString(Res.string.receipt_deleted, r.name),
+                                    actionLabel = getString(Res.string.action_undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.undoDelete(r.id)
+                                }
+                            }
                         },
                         onOpen = viewModel::openPdf,
                         onShare = viewModel::sharePdf,

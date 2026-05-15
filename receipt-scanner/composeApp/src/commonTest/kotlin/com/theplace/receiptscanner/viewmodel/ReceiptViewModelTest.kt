@@ -19,8 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
@@ -95,6 +97,46 @@ class ReceiptViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(r), repo.deleted)
+    }
+
+    @Test
+    fun delete_hides_receipt_immediately_but_defers_repo_call() = runTest(dispatcher) {
+        val repo = FakeRepository()
+        val vm = ReceiptViewModel(repo, FakePdfActions())
+        val a = receipt(id = 1, name = "A")
+        val b = receipt(id = 2, name = "B")
+        repo.emit(listOf(a, b))
+        advanceUntilIdle()
+
+        vm.delete(a)
+        // Avant que le delay de 5 s ne s'écoule : a est masqué, repo intact.
+        advanceTimeBy(100)
+        runCurrent()
+
+        assertEquals(listOf(2L), vm.visibleReceipts.first().map { it.id })
+        assertTrue(repo.deleted.isEmpty(), "repo.delete ne doit pas être appelé tout de suite")
+
+        // On laisse filer la fenêtre d'annulation.
+        advanceUntilIdle()
+        assertEquals(listOf(1L), repo.deleted.map { it.id })
+        assertTrue(vm.pendingDeletion.first().isEmpty())
+    }
+
+    @Test
+    fun undoDelete_cancels_pending_deletion() = runTest(dispatcher) {
+        val repo = FakeRepository()
+        val vm = ReceiptViewModel(repo, FakePdfActions())
+        val r = receipt(id = 7)
+        repo.emit(listOf(r))
+        advanceUntilIdle()
+
+        vm.delete(r)
+        vm.undoDelete(7L)
+        advanceUntilIdle()
+
+        assertTrue(repo.deleted.isEmpty(), "le repo ne doit pas avoir été appelé après undo")
+        assertTrue(vm.pendingDeletion.first().isEmpty())
+        assertEquals(listOf(7L), vm.visibleReceipts.first().map { it.id })
     }
 
     @Test

@@ -124,6 +124,7 @@
     <string name="scan_save_failed">Archivage impossible : %1$s</string>
     <string name="receipt_saved">« %1$s » archivé</string>
     <string name="receipt_deleted">« %1$s » supprimé</string>
+    <string name="action_undo">Annuler</string>
 
     <string name="receipts_count">%1$d ticket(s) — %2$s au total</string>
     <string name="pages_label">%1$d page(s)</string>

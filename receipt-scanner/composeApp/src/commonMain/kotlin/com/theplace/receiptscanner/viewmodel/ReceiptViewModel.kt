@@ -13,10 +13,13 @@ import com.theplace.receiptscanner.platform.PlatformScanResult
 import com.theplace.receiptscanner.platform.TextRecognizer
 import com.theplace.receiptscanner.util.ReceiptInfoExtractor
 import com.theplace.receiptscanner.util.defaultReceiptName
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,6 +42,24 @@ class ReceiptViewModel(
     private val _selection = MutableStateFlow<Set<Long>>(emptySet())
     /** Identifiants des tickets sélectionnés en mode multi-sélection. */
     val selection: StateFlow<Set<Long>> = _selection.asStateFlow()
+
+    /**
+     * IDs des tickets supprimés mais encore dans la fenêtre d'annulation
+     * (UNDO_GRACE_MS). Permet de cacher visuellement la carte tout en
+     * conservant la possibilité d'annuler la suppression.
+     */
+    private val _pendingDeletion = MutableStateFlow<Set<Long>>(emptySet())
+    val pendingDeletion: StateFlow<Set<Long>> = _pendingDeletion.asStateFlow()
+    private val pendingJobs = mutableMapOf<Long, Job>()
+
+    /** Liste affichable : `receipts` moins les tickets en cours de suppression. */
+    val visibleReceipts: StateFlow<List<Receipt>> = combine(receipts, _pendingDeletion) { all, hidden ->
+        if (hidden.isEmpty()) all else all.filterNot { it.id in hidden }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList(),
+    )
 
     /** Issue d'un archivage : succès avec le ticket inséré, ou échec (disque plein, fichier corrompu…). */
     sealed interface SaveScanOutcome {
@@ -112,8 +133,27 @@ class ReceiptViewModel(
         }
     }
 
+    /**
+     * Suppression « différée » : le ticket disparaît immédiatement de la
+     * liste visible, mais la suppression effective en base et sur disque
+     * n'a lieu qu'après `UNDO_GRACE_MS` — l'utilisateur peut annuler
+     * pendant ce délai via la snackbar action.
+     */
     fun delete(receipt: Receipt) {
-        viewModelScope.launch { repository.delete(receipt) }
+        pendingJobs[receipt.id]?.cancel()
+        _pendingDeletion.update { it + receipt.id }
+        pendingJobs[receipt.id] = viewModelScope.launch {
+            delay(UNDO_GRACE_MS)
+            repository.delete(receipt)
+            _pendingDeletion.update { it - receipt.id }
+            pendingJobs.remove(receipt.id)
+        }
+    }
+
+    /** Annule la suppression différée d'un ticket si encore dans la fenêtre. */
+    fun undoDelete(id: Long) {
+        pendingJobs.remove(id)?.cancel()
+        _pendingDeletion.update { it - id }
     }
 
     fun setCategory(receipt: Receipt, category: ReceiptCategory?) {
@@ -194,6 +234,11 @@ class ReceiptViewModel(
     }
 
     /** Exporte les tickets sélectionnés vers `target` ; remonte le résultat via `onDone`. */
+    private companion object {
+        /** Fenêtre d'annulation après une suppression (un peu plus que SnackbarDuration.Short = 4 s). */
+        const val UNDO_GRACE_MS = 5_000L
+    }
+
     fun exportSelected(target: PlatformExportTarget, onDone: (ExportOutcome) -> Unit) {
         val items = selectedReceipts()
         if (items.isEmpty()) {
