@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,8 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -119,15 +125,45 @@ private fun PdfPageItem(renderer: PdfRenderer, index: Int, totalPages: Int) {
                     }
                 }
             } else {
-                Image(
-                    bitmap = pageImage,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
-                )
+                ZoomableImage(image = pageImage)
             }
         }
     }
+}
+
+/**
+ * Image avec pinch-to-zoom (1×→4×) et pan en mode zoomé. Double-tap
+ * pour réinitialiser. Le pan est annulé dès qu'on revient à scale 1.
+ */
+@Composable
+private fun ZoomableImage(image: ImageBitmap) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 4f)
+        offset = if (scale > 1f) offset + panChange else Offset.Zero
+    }
+    Image(
+        bitmap = image,
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale,
+                translationX = offset.x,
+                translationY = offset.y,
+            )
+            .transformable(transformableState)
+            .pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = {
+                    scale = 1f
+                    offset = Offset.Zero
+                })
+            },
+    )
 }
 
 private fun openRenderer(file: File): PdfRenderer? = runCatching {

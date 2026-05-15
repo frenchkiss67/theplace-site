@@ -55,6 +55,14 @@
     <string name="restore_empty">Aucun nouveau ticket à restaurer</string>
     <string name="restore_failed">Restauration impossible : %1$s</string>
 
+    <string name="onboarding_title_1">Scannez vos tickets</string>
+    <string name="onboarding_body_1">Le scanner détecte les bords, redresse le ticket et l'archive en PDF dans un dossier privé.</string>
+    <string name="onboarding_title_2">Organisez en lot</string>
+    <string name="onboarding_body_2">Appuyez longuement sur un ticket pour en sélectionner plusieurs : partage, export ou suppression groupés.</string>
+    <string name="onboarding_skip">Passer</string>
+    <string name="onboarding_next">Suivant</string>
+    <string name="onboarding_done">C'est parti</string>
+
     <string name="category_label">Catégorie</string>
     <string name="category_none">Sans catégorie</string>
     <string name="category_all">Toutes</string>

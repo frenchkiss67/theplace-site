@@ -12,6 +12,7 @@ import com.theplace.receiptscanner.platform.PlatformExportTarget
 import com.theplace.receiptscanner.platform.PlatformScanResult
 import com.theplace.receiptscanner.platform.TextRecognizer
 import com.theplace.receiptscanner.util.ReceiptInfoExtractor
+import com.theplace.receiptscanner.util.defaultReceiptName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,18 +50,34 @@ class ReceiptViewModel(
 
     /**
      * Lance l'OCR de manière non bloquante après l'archivage. Met à jour
-     * le ticket avec le texte extrait, et pré-remplit `totalCents` si
-     * une heuristique trouve un total et que l'utilisateur n'en a pas
-     * encore saisi.
+     * le ticket avec le texte extrait et pré-remplit, quand l'utilisateur
+     * n'a pas déjà saisi :
+     *   - le nom (si encore au libellé par défaut « Ticket du … »),
+     *     remplacé par le marchand détecté ;
+     *   - le total (centimes) ;
+     *   - la date d'achat.
      */
     private fun runOcrInBackground(receipt: Receipt) {
         val recognizer = textRecognizer ?: return
         viewModelScope.launch {
             val text = runCatching { recognizer.extractText(receipt) }.getOrNull() ?: return@launch
             val current = repository.findById(receipt.id) ?: return@launch
-            // L'utilisateur peut avoir saisi un montant pendant l'OCR — on respecte.
+
+            val proposedName = if (current.name == defaultReceiptName(current.createdAt)) {
+                ReceiptInfoExtractor.extractMerchantName(text) ?: current.name
+            } else current.name
             val proposedTotal = current.totalCents ?: ReceiptInfoExtractor.extractTotalCents(text)
-            repository.update(current.copy(extractedText = text, totalCents = proposedTotal))
+            val proposedPurchasedAt =
+                current.purchasedAt ?: ReceiptInfoExtractor.extractPurchasedAtMs(text)
+
+            repository.update(
+                current.copy(
+                    name = proposedName,
+                    extractedText = text,
+                    totalCents = proposedTotal,
+                    purchasedAt = proposedPurchasedAt,
+                )
+            )
         }
     }
 

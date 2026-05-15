@@ -41,6 +41,14 @@
     <string name="restore_empty">No new receipt to restore</string>
     <string name="restore_failed">Restore failed: %1$s</string>
 
+    <string name="onboarding_title_1">Scan your receipts</string>
+    <string name="onboarding_body_1">The scanner detects edges, straightens the receipt and archives it as a PDF in a private folder.</string>
+    <string name="onboarding_title_2">Batch actions</string>
+    <string name="onboarding_body_2">Long-press a receipt to enter selection mode — share, export or delete multiple at once.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_done">Let's go</string>
+
     <string name="selection_count">%1$d selected</string>
     <string name="selection_clear">Exit selection</string>
     <string name="selection_all">Select all</string>

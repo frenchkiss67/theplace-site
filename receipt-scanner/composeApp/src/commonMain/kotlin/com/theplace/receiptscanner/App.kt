@@ -21,6 +21,7 @@ import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
 import com.theplace.receiptscanner.platform.ExportOutcome
+import com.theplace.receiptscanner.platform.OnboardingSettings
 import com.theplace.receiptscanner.platform.ScanOutcome
 import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
 import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
@@ -38,6 +39,7 @@ import com.theplace.receiptscanner.resources.restore_success
 import com.theplace.receiptscanner.resources.scan_cancelled
 import com.theplace.receiptscanner.resources.scan_error
 import com.theplace.receiptscanner.resources.selection_share_label
+import com.theplace.receiptscanner.ui.OnboardingScreen
 import com.theplace.receiptscanner.ui.ReceiptDetailScreen
 import com.theplace.receiptscanner.ui.ReceiptListScreen
 import com.theplace.receiptscanner.ui.theme.ReceiptScannerTheme
@@ -59,9 +61,15 @@ fun App(
     viewModel: ReceiptViewModel,
     appLock: AppLockSettings,
     backupSettings: BackupSettings,
+    onboarding: OnboardingSettings,
     dynamicColorScheme: ColorScheme? = null,
 ) {
     ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
+        val onboardingDone by onboarding.completed.collectAsState()
+        if (!onboardingDone) {
+            OnboardingScreen(onComplete = onboarding::markCompleted)
+            return@ReceiptScannerTheme
+        }
         BiometricGate(settings = appLock) {
             AppContent(viewModel = viewModel, appLock = appLock, backupSettings = backupSettings)
         }

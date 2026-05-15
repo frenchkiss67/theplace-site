@@ -3,6 +3,9 @@ package com.theplace.receiptscanner.util
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 
 class ReceiptInfoExtractorTest {
 
@@ -54,5 +57,60 @@ class ReceiptInfoExtractorTest {
             12,30 €
         """.trimIndent()
         assertEquals(1230L, ReceiptInfoExtractor.extractTotalCents(text))
+    }
+
+    @Test
+    fun extractMerchantName_returns_first_significant_line() {
+        val text = """
+
+            CARREFOUR CITY
+            32 rue de Rivoli
+            75001 Paris
+        """.trimIndent()
+        assertEquals("CARREFOUR CITY", ReceiptInfoExtractor.extractMerchantName(text))
+    }
+
+    @Test
+    fun extractMerchantName_skips_pure_numbers_and_siret() {
+        val text = """
+            123456789
+            SIRET 38493823800012
+            BIOCOOP — La Marche
+        """.trimIndent()
+        assertEquals("BIOCOOP — La Marche", ReceiptInfoExtractor.extractMerchantName(text))
+    }
+
+    @Test
+    fun extractMerchantName_returns_null_for_blank_or_short() {
+        assertNull(ReceiptInfoExtractor.extractMerchantName(""))
+        assertNull(ReceiptInfoExtractor.extractMerchantName("a\nb\n"))
+        assertNull(ReceiptInfoExtractor.extractMerchantName(null))
+    }
+
+    @Test
+    fun extractPurchasedAtMs_matches_french_date() {
+        val text = "Ticket émis le 14/05/2026 à 10h32"
+        val expected = LocalDateTime(2026, 5, 14, 0, 0).toInstant(TimeZone.UTC).toEpochMilliseconds()
+        assertEquals(expected, ReceiptInfoExtractor.extractPurchasedAtMs(text, TimeZone.UTC))
+    }
+
+    @Test
+    fun extractPurchasedAtMs_matches_two_digit_year() {
+        val text = "Date: 01-02-26"
+        val expected = LocalDateTime(2026, 2, 1, 0, 0).toInstant(TimeZone.UTC).toEpochMilliseconds()
+        assertEquals(expected, ReceiptInfoExtractor.extractPurchasedAtMs(text, TimeZone.UTC))
+    }
+
+    @Test
+    fun extractPurchasedAtMs_rejects_impossible_dates() {
+        assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("99/99/2026", TimeZone.UTC))
+        assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("Pas de date ici", TimeZone.UTC))
+        assertNull(ReceiptInfoExtractor.extractPurchasedAtMs(null, TimeZone.UTC))
+    }
+
+    @Test
+    fun extractPurchasedAtMs_rejects_year_out_of_century() {
+        assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("14/05/1899", TimeZone.UTC))
+        assertNull(ReceiptInfoExtractor.extractPurchasedAtMs("14/05/2100", TimeZone.UTC))
     }
 }
