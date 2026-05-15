@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -61,6 +62,7 @@ import com.theplace.receiptscanner.resources.category_label
 import com.theplace.receiptscanner.resources.category_none
 import com.theplace.receiptscanner.resources.detail_back
 import com.theplace.receiptscanner.resources.detail_open_external
+import com.theplace.receiptscanner.resources.detail_rerun_ocr
 import com.theplace.receiptscanner.resources.detail_title
 import com.theplace.receiptscanner.resources.warranty_active_until
 import com.theplace.receiptscanner.resources.warranty_clear
@@ -106,9 +108,11 @@ fun ReceiptDetailScreen(
     onAmountChange: (Receipt, Long?) -> Unit,
     onPurchasedAtChange: (Receipt, Long?) -> Unit,
     onWarrantyMonthsChange: (Receipt, Int?) -> Unit,
+    onRerunOcr: (Receipt) -> Unit,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
+    var overflowOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -135,6 +139,21 @@ fun ReceiptDetailScreen(
                             Icons.Default.Delete,
                             contentDescription = stringResource(Res.string.action_delete),
                             tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    IconButton(onClick = { overflowOpen = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = null)
+                    }
+                    DropdownMenu(
+                        expanded = overflowOpen,
+                        onDismissRequest = { overflowOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.detail_rerun_ocr)) },
+                            onClick = {
+                                overflowOpen = false
+                                onRerunOcr(receipt)
+                            },
                         )
                     }
                 },

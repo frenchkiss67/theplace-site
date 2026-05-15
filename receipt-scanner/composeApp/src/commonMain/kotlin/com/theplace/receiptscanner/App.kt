@@ -31,6 +31,7 @@ import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
 import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
 import com.theplace.receiptscanner.platform.rememberNotificationPermissionRequester
 import com.theplace.receiptscanner.resources.Res
+import com.theplace.receiptscanner.resources.detail_rerun_ocr_started
 import com.theplace.receiptscanner.resources.export_csv_default_name
 import com.theplace.receiptscanner.resources.export_csv_done
 import com.theplace.receiptscanner.resources.export_csv_failed
@@ -327,6 +328,14 @@ private fun AppContent(
                             viewModel.setWarrantyMonths(r, months)
                             // Première garantie activée → demande la permission notif.
                             if (months != null) notifPermission.requestIfNeeded()
+                        },
+                        onRerunOcr = { r ->
+                            viewModel.rerunOcr(r)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    getString(Res.string.detail_rerun_ocr_started)
+                                )
+                            }
                         },
                     )
                 }

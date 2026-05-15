@@ -133,6 +133,8 @@
     <string name="detail_preview_unavailable">Aperçu indisponible</string>
     <string name="detail_back">Retour</string>
     <string name="detail_open_external">Ouvrir dans un viewer externe</string>
+    <string name="detail_rerun_ocr">Relancer l'OCR</string>
+    <string name="detail_rerun_ocr_started">OCR relancé en arrière-plan</string>
     <string name="page_index">Page %1$d / %2$d</string>
 
     <string name="dialog_delete_title">Supprimer ce ticket ?</string>

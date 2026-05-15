@@ -132,6 +132,8 @@
     <string name="detail_preview_unavailable">Preview unavailable</string>
     <string name="detail_back">Back</string>
     <string name="detail_open_external">Open in external viewer</string>
+    <string name="detail_rerun_ocr">Re-run OCR</string>
+    <string name="detail_rerun_ocr_started">OCR re-running in the background</string>
     <string name="page_index">Page %1$d / %2$d</string>
 
     <string name="dialog_delete_title">Delete this receipt?</string>

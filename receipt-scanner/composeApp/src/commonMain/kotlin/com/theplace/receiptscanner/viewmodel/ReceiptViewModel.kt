@@ -59,13 +59,21 @@ class ReceiptViewModel(
     }
 
     /**
+     * Relance manuellement l'OCR sur un ticket déjà archivé. Utile pour
+     * les tickets antérieurs à la migration v3 ou si l'utilisateur veut
+     * rejouer la détection après avoir édité ou rescanné le PDF.
+     */
+    fun rerunOcr(receipt: Receipt) = runOcrInBackground(receipt)
+
+    /**
      * Lance l'OCR de manière non bloquante après l'archivage. Met à jour
      * le ticket avec le texte extrait et pré-remplit, quand l'utilisateur
      * n'a pas déjà saisi :
      *   - le nom (si encore au libellé par défaut « Ticket du … »),
      *     remplacé par le marchand détecté ;
      *   - le total (centimes) ;
-     *   - la date d'achat.
+     *   - la date d'achat ;
+     *   - la catégorie (via auto-cat par marchand).
      */
     private fun runOcrInBackground(receipt: Receipt) {
         val recognizer = textRecognizer ?: return

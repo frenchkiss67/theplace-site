@@ -48,22 +48,20 @@ fun formatDateForAccessibility(
     return "${dt.dayOfMonth} $monthName ${dt.year} à $hour h $minute"
 }
 
-/** Libellé long FR d'un mois — pour la lecture vocale. */
-private fun monthLongLabel(month: Int): String = when (month) {
-    1 -> "janvier"
-    2 -> "février"
-    3 -> "mars"
-    4 -> "avril"
-    5 -> "mai"
-    6 -> "juin"
-    7 -> "juillet"
-    8 -> "août"
-    9 -> "septembre"
-    10 -> "octobre"
-    11 -> "novembre"
-    12 -> "décembre"
-    else -> "?"
-}
+private val monthsShort = listOf(
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+)
+private val monthsLong = listOf(
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+)
+
+/** Libellé court FR d'un mois (« janv. », « févr. »…), 1-indexé. */
+fun monthShortLabel(month: Int): String = monthsShort.getOrNull(month - 1) ?: "?"
+
+/** Libellé long FR d'un mois (« janvier », « février »…), 1-indexé. */
+fun monthLongLabel(month: Int): String = monthsLong.getOrNull(month - 1) ?: "?"
 
 /**
  * Format monétaire « 12,30 € ». Centimes → euros, séparateur décimal FR,

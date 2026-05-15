@@ -61,20 +61,3 @@ fun List<Receipt>.statsByLast12Months(
     return months.map { (y, m) -> MonthSpend(y, m, totals[y to m] ?: 0) }
 }
 
-/** Libellé court d'un mois (« janv. », « févr. », etc.). FR uniquement pour l'instant. */
-fun monthShortLabel(month: Int): String = when (month) {
-    1 -> "janv."
-    2 -> "févr."
-    3 -> "mars"
-    4 -> "avr."
-    5 -> "mai"
-    6 -> "juin"
-    7 -> "juil."
-    8 -> "août"
-    9 -> "sept."
-    10 -> "oct."
-    11 -> "nov."
-    12 -> "déc."
-    else -> "?"
-}
-
