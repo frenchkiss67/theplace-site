@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -47,6 +48,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -91,6 +93,10 @@ import com.theplace.receiptscanner.resources.search_clear
 import com.theplace.receiptscanner.resources.search_no_results
 import com.theplace.receiptscanner.resources.search_placeholder
 import com.theplace.receiptscanner.resources.selection_all
+import com.theplace.receiptscanner.resources.settings_lock_description
+import com.theplace.receiptscanner.resources.settings_lock_label
+import com.theplace.receiptscanner.resources.settings_lock_unavailable
+import com.theplace.receiptscanner.resources.settings_title
 import com.theplace.receiptscanner.resources.selection_clear
 import com.theplace.receiptscanner.resources.selection_count
 import com.theplace.receiptscanner.resources.sort_date_asc
@@ -107,6 +113,9 @@ import org.jetbrains.compose.resources.stringResource
 fun ReceiptListScreen(
     receipts: List<Receipt>,
     selection: Set<Long>,
+    lockEnabled: Boolean,
+    lockAvailable: Boolean,
+    onToggleLock: (Boolean) -> Unit,
     snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
     onItemClick: (Receipt) -> Unit,
@@ -124,10 +133,12 @@ fun ReceiptListScreen(
     var renameTarget by remember { mutableStateOf<Receipt?>(null) }
     var deleteTarget by remember { mutableStateOf<Receipt?>(null) }
     var deleteManyOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var sortOption by rememberSaveable { mutableStateOf(SortOption.DateDesc) }
     var sortMenuOpen by remember { mutableStateOf(false) }
+    var overflowOpen by remember { mutableStateOf(false) }
 
     val filteredReceipts = remember(receipts, query, sortOption) {
         receipts.filteredByQuery(query).sortedBy(sortOption)
@@ -168,6 +179,24 @@ fun ReceiptListScreen(
                                 sortMenuOpen = false
                             },
                         )
+                        IconButton(onClick = { overflowOpen = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = stringResource(Res.string.settings_title),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = overflowOpen,
+                            onDismissRequest = { overflowOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.settings_title)) },
+                                onClick = {
+                                    overflowOpen = false
+                                    settingsOpen = true
+                                },
+                            )
+                        }
                     },
                 )
             }
@@ -261,6 +290,15 @@ fun ReceiptListScreen(
                     Text(stringResource(Res.string.dialog_cancel))
                 }
             },
+        )
+    }
+
+    if (settingsOpen) {
+        SettingsDialog(
+            lockEnabled = lockEnabled,
+            lockAvailable = lockAvailable,
+            onToggleLock = onToggleLock,
+            onDismiss = { settingsOpen = false },
         )
     }
 
@@ -510,6 +548,54 @@ private fun NoResultsState(query: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun SettingsDialog(
+    lockEnabled: Boolean,
+    lockAvailable: Boolean,
+    onToggleLock: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.settings_title)) },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(Res.string.settings_lock_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(Res.string.settings_lock_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = lockEnabled && lockAvailable,
+                        enabled = lockAvailable,
+                        onCheckedChange = onToggleLock,
+                    )
+                }
+                if (!lockAvailable) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(Res.string.settings_lock_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_confirm))
+            }
+        },
+    )
 }
 
 @Composable

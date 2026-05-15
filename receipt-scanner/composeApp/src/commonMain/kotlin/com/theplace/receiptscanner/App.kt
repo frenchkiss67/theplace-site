@@ -16,6 +16,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.theplace.receiptscanner.platform.AppLockSettings
+import com.theplace.receiptscanner.platform.BiometricGate
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.ScanOutcome
 import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
@@ -49,16 +51,29 @@ private const val NAV_FADE_MS = 150
 @Composable
 fun App(
     viewModel: ReceiptViewModel,
+    appLock: AppLockSettings,
     dynamicColorScheme: ColorScheme? = null,
 ) {
     ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
-        val navController = rememberNavController()
-        val snackbarHostState = remember { SnackbarHostState() }
-        val scope = rememberCoroutineScope()
+        BiometricGate(settings = appLock) {
+            AppContent(viewModel = viewModel, appLock = appLock)
+        }
+    }
+}
 
-        val receipts by viewModel.receipts.collectAsState()
-        val selection by viewModel.selection.collectAsState()
-        val shareLabel = stringResource(Res.string.selection_share_label)
+@Composable
+private fun AppContent(
+    viewModel: ReceiptViewModel,
+    appLock: AppLockSettings,
+) {
+    val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val receipts by viewModel.receipts.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val shareLabel = stringResource(Res.string.selection_share_label)
+    val lockEnabled by appLock.enabled.collectAsState()
 
         val scanner = rememberDocumentScannerLauncher { outcome ->
             when (outcome) {
@@ -120,6 +135,9 @@ fun App(
                 ReceiptListScreen(
                     receipts = receipts,
                     selection = selection,
+                    lockEnabled = lockEnabled,
+                    lockAvailable = appLock.isBiometricAvailable,
+                    onToggleLock = appLock::setEnabled,
                     snackbarHostState = snackbarHostState,
                     onScanClicked = { scanner.launch() },
                     onItemClick = { receipt ->
@@ -199,4 +217,3 @@ fun App(
             }
         }
     }
-}

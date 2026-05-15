@@ -2,7 +2,6 @@ package com.theplace.receiptscanner
 
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -13,13 +12,15 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.viewmodel.ReceiptViewModel
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity nécessaire pour BiometricPrompt (cf. AppLock.android.kt).
+class MainActivity : FragmentActivity() {
 
     private val viewModel: ReceiptViewModel by viewModels {
         val services = (application as ReceiptScannerApp).services
@@ -29,9 +30,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val services = (application as ReceiptScannerApp).services
         setContent {
             App(
                 viewModel = viewModel,
+                appLock = services.appLock,
                 dynamicColorScheme = rememberDynamicColorScheme(),
             )
         }

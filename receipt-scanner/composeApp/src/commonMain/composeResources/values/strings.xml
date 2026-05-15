@@ -31,6 +31,16 @@
     <string name="export_partial">%1$d ticket(s) exporté(s), erreur : %2$s</string>
     <string name="export_failed">Export impossible : %1$s</string>
 
+    <string name="settings_title">Réglages</string>
+    <string name="settings_lock_label">Verrouillage biométrique</string>
+    <string name="settings_lock_description">Demander empreinte digitale, visage ou code à l'ouverture de l'app.</string>
+    <string name="settings_lock_unavailable">Aucune biométrie ou code d'écran n'est configuré sur cet appareil.</string>
+
+    <string name="lock_title">Tickets verrouillés</string>
+    <string name="lock_subtitle">Authentifiez-vous pour accéder à vos tickets.</string>
+    <string name="lock_button_unlock">Déverrouiller</string>
+    <string name="lock_negative">Annuler</string>
+
     <string name="sort_label">Trier</string>
     <string name="sort_date_desc">Plus récents d'abord</string>
     <string name="sort_date_asc">Plus anciens d'abord</string>
