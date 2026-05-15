@@ -88,6 +88,18 @@ class ReceiptViewModel(
         }
     }
 
+    fun setPurchasedAt(receipt: Receipt, purchasedAt: Long?) {
+        viewModelScope.launch {
+            repository.update(receipt.copy(purchasedAt = purchasedAt))
+        }
+    }
+
+    fun setWarrantyMonths(receipt: Receipt, months: Int?) {
+        viewModelScope.launch {
+            repository.update(receipt.copy(warrantyMonths = months))
+        }
+    }
+
     fun openPdf(receipt: Receipt) = pdfActions.open(receipt)
 
     fun sharePdf(receipt: Receipt) = pdfActions.share(receipt, receipt.name)

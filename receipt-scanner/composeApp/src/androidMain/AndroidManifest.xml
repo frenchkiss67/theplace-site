@@ -8,6 +8,10 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- Notifications J-30 pour les garanties (Android 13+ runtime).
+         Demande utilisateur déférée à la première activation effective. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".ReceiptScannerApp"
         android:allowBackup="true"

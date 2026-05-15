@@ -21,6 +21,8 @@ internal data class ReceiptEntity(
     val category: String? = null,
     val totalCents: Long? = null,
     val extractedText: String? = null,
+    val purchasedAt: Long? = null,
+    val warrantyMonths: Int? = null,
 )
 
 internal fun ReceiptEntity.toDomain(): Receipt = Receipt(
@@ -33,6 +35,8 @@ internal fun ReceiptEntity.toDomain(): Receipt = Receipt(
     category = ReceiptCategory.fromStorage(category),
     totalCents = totalCents,
     extractedText = extractedText,
+    purchasedAt = purchasedAt,
+    warrantyMonths = warrantyMonths,
 )
 
 internal fun Receipt.toEntity(): ReceiptEntity = ReceiptEntity(
@@ -45,4 +49,6 @@ internal fun Receipt.toEntity(): ReceiptEntity = ReceiptEntity(
     category = category?.name,
     totalCents = totalCents,
     extractedText = extractedText,
+    purchasedAt = purchasedAt,
+    warrantyMonths = warrantyMonths,
 )

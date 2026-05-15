@@ -1,5 +1,6 @@
 package com.theplace.receiptscanner.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -16,9 +19,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +62,19 @@ import com.theplace.receiptscanner.resources.category_none
 import com.theplace.receiptscanner.resources.detail_back
 import com.theplace.receiptscanner.resources.detail_open_external
 import com.theplace.receiptscanner.resources.detail_title
+import com.theplace.receiptscanner.resources.warranty_active_until
+import com.theplace.receiptscanner.resources.warranty_clear
+import com.theplace.receiptscanner.resources.warranty_duration
+import com.theplace.receiptscanner.resources.warranty_expired
+import com.theplace.receiptscanner.resources.warranty_expires_in
+import com.theplace.receiptscanner.resources.warranty_months_short
+import com.theplace.receiptscanner.resources.warranty_none
+import com.theplace.receiptscanner.resources.warranty_pick_date_first
+import com.theplace.receiptscanner.resources.warranty_purchased_at
+import com.theplace.receiptscanner.resources.warranty_section
+import com.theplace.receiptscanner.resources.warranty_set_date
+import com.theplace.receiptscanner.resources.warranty_year
+import com.theplace.receiptscanner.resources.warranty_years
 import com.theplace.receiptscanner.resources.dialog_cancel
 import com.theplace.receiptscanner.resources.dialog_confirm
 import com.theplace.receiptscanner.resources.dialog_delete_message
@@ -62,10 +82,14 @@ import com.theplace.receiptscanner.resources.dialog_delete_title
 import com.theplace.receiptscanner.resources.dialog_rename_hint
 import com.theplace.receiptscanner.resources.dialog_rename_title
 import com.theplace.receiptscanner.resources.pages_label
+import com.theplace.receiptscanner.util.daysUntilWarrantyEnd
 import com.theplace.receiptscanner.util.formatAmount
 import com.theplace.receiptscanner.util.formatDate
+import com.theplace.receiptscanner.util.formatDateOnly
 import com.theplace.receiptscanner.util.formatSize
+import com.theplace.receiptscanner.util.nowMs
 import com.theplace.receiptscanner.util.parseAmountCents
+import com.theplace.receiptscanner.util.warrantyEndMs
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +104,8 @@ fun ReceiptDetailScreen(
     onShare: (Receipt) -> Unit,
     onCategoryChange: (Receipt, ReceiptCategory?) -> Unit,
     onAmountChange: (Receipt, Long?) -> Unit,
+    onPurchasedAtChange: (Receipt, Long?) -> Unit,
+    onWarrantyMonthsChange: (Receipt, Int?) -> Unit,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -125,6 +151,11 @@ fun ReceiptDetailScreen(
                 receipt = receipt,
                 onCategoryChange = { onCategoryChange(receipt, it) },
                 onAmountChange = { onAmountChange(receipt, it) },
+            )
+            WarrantySection(
+                receipt = receipt,
+                onPurchasedAtChange = { onPurchasedAtChange(receipt, it) },
+                onWarrantyMonthsChange = { onWarrantyMonthsChange(receipt, it) },
             )
             Spacer(modifier = Modifier.height(8.dp))
             Box(modifier = Modifier.weight(1f, fill = true).fillMaxWidth()) {
@@ -286,6 +317,141 @@ private fun MetadataRow(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WarrantySection(
+    receipt: Receipt,
+    onPurchasedAtChange: (Long?) -> Unit,
+    onWarrantyMonthsChange: (Int?) -> Unit,
+) {
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            text = stringResource(Res.string.warranty_section),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            val dateLabel = receipt.purchasedAt?.let { formatDateOnly(it) }
+            Text(
+                text = stringResource(Res.string.warranty_purchased_at) + " : " + (dateLabel ?: "—"),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { pickerOpen = true }) {
+                Text(stringResource(Res.string.warranty_set_date))
+            }
+            if (receipt.purchasedAt != null) {
+                TextButton(onClick = {
+                    onPurchasedAtChange(null)
+                    onWarrantyMonthsChange(null)
+                }) {
+                    Text(stringResource(Res.string.warranty_clear))
+                }
+            }
+        }
+
+        // Durée : 4 chips classiques. Activable seulement si une date est posée.
+        val durationEnabled = receipt.purchasedAt != null
+        Text(
+            text = stringResource(Res.string.warranty_duration),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DurationChip(label = stringResource(Res.string.warranty_none),
+                selected = receipt.warrantyMonths == null,
+                enabled = durationEnabled,
+                onClick = { onWarrantyMonthsChange(null) })
+            DurationChip(label = stringResource(Res.string.warranty_months_short, 6),
+                selected = receipt.warrantyMonths == 6,
+                enabled = durationEnabled,
+                onClick = { onWarrantyMonthsChange(6) })
+            DurationChip(label = stringResource(Res.string.warranty_year),
+                selected = receipt.warrantyMonths == 12,
+                enabled = durationEnabled,
+                onClick = { onWarrantyMonthsChange(12) })
+            DurationChip(label = stringResource(Res.string.warranty_years, 2),
+                selected = receipt.warrantyMonths == 24,
+                enabled = durationEnabled,
+                onClick = { onWarrantyMonthsChange(24) })
+            DurationChip(label = stringResource(Res.string.warranty_years, 3),
+                selected = receipt.warrantyMonths == 36,
+                enabled = durationEnabled,
+                onClick = { onWarrantyMonthsChange(36) })
+        }
+
+        // Récap couverture / expiration.
+        val now = remember { nowMs() }
+        val endMs = warrantyEndMs(receipt.purchasedAt, receipt.warrantyMonths)
+        val daysLeft = daysUntilWarrantyEnd(now, receipt.purchasedAt, receipt.warrantyMonths)
+        if (endMs != null && daysLeft != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = if (daysLeft < 0) {
+                    stringResource(Res.string.warranty_expired)
+                } else {
+                    stringResource(Res.string.warranty_active_until, formatDateOnly(endMs)) +
+                        " · " + stringResource(Res.string.warranty_expires_in, daysLeft)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (daysLeft < 0) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (!durationEnabled) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(Res.string.warranty_pick_date_first),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    if (pickerOpen) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = receipt.purchasedAt ?: receipt.createdAt,
+        )
+        DatePickerDialog(
+            onDismissRequest = { pickerOpen = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    onPurchasedAtChange(datePickerState.selectedDateMillis)
+                    pickerOpen = false
+                }) { Text(stringResource(Res.string.dialog_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pickerOpen = false }) {
+                    Text(stringResource(Res.string.dialog_cancel))
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+@Composable
+private fun DurationChip(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        enabled = enabled,
+        onClick = onClick,
+        label = { Text(label) },
+    )
 }
 
 @Composable

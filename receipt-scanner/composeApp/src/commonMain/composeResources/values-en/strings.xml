@@ -62,6 +62,25 @@
     <string name="amount_unit">€</string>
     <string name="amount_invalid">Invalid format</string>
 
+    <string name="warranty_section">Warranty</string>
+    <string name="warranty_purchased_at">Purchase date</string>
+    <string name="warranty_set_date">Set</string>
+    <string name="warranty_clear">Clear</string>
+    <string name="warranty_duration">Duration</string>
+    <string name="warranty_none">None</string>
+    <string name="warranty_months_short">%1$d months</string>
+    <string name="warranty_year">1 year</string>
+    <string name="warranty_years">%1$d years</string>
+    <string name="warranty_expires_in">Expires in %1$d day(s)</string>
+    <string name="warranty_expired">Warranty expired</string>
+    <string name="warranty_active_until">Covered until %1$s</string>
+    <string name="warranty_pick_date_first">Please pick the purchase date first</string>
+
+    <string name="warranty_notif_channel">Warranties expiring</string>
+    <string name="warranty_notif_channel_desc">J-30 reminders before your receipts' warranty ends.</string>
+    <string name="warranty_notif_title">Warranty expiring soon</string>
+    <string name="warranty_notif_text">%1$s — %2$d day(s) left.</string>
+
     <string name="month_total">This month: %1$s</string>
     <string name="receipts_count_with_total">%1$d receipt(s) — %2$s · %3$s</string>
 

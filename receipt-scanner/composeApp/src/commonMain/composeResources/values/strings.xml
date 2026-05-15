@@ -63,6 +63,25 @@
     <string name="amount_unit">€</string>
     <string name="amount_invalid">Format invalide</string>
 
+    <string name="warranty_section">Garantie</string>
+    <string name="warranty_purchased_at">Date d'achat</string>
+    <string name="warranty_set_date">Configurer</string>
+    <string name="warranty_clear">Effacer</string>
+    <string name="warranty_duration">Durée</string>
+    <string name="warranty_none">Aucune</string>
+    <string name="warranty_months_short">%1$d mois</string>
+    <string name="warranty_year">1 an</string>
+    <string name="warranty_years">%1$d ans</string>
+    <string name="warranty_expires_in">Expire dans %1$d jour(s)</string>
+    <string name="warranty_expired">Garantie expirée</string>
+    <string name="warranty_active_until">Couverte jusqu'au %1$s</string>
+    <string name="warranty_pick_date_first">Date d'achat à renseigner d'abord</string>
+
+    <string name="warranty_notif_channel">Garanties qui expirent</string>
+    <string name="warranty_notif_channel_desc">Rappels J-30 avant la fin de garantie de vos tickets.</string>
+    <string name="warranty_notif_title">Garantie bientôt expirée</string>
+    <string name="warranty_notif_text">%1$s — il reste %2$d jour(s).</string>
+
     <string name="month_total">Ce mois-ci : %1$s</string>
     <string name="receipts_count_with_total">%1$d ticket(s) — %2$s · %3$s</string>
 

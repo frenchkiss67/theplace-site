@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [ReceiptEntity::class], version = 3, exportSchema = false)
+@Database(entities = [ReceiptEntity::class], version = 4, exportSchema = false)
 internal abstract class ReceiptDatabase : RoomDatabase() {
     abstract fun receiptDao(): ReceiptDao
 
@@ -38,6 +38,18 @@ internal abstract class ReceiptDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration v3→v4 : ajoute `purchasedAt` (epoch ms, date d'achat
+         * choisie par l'utilisateur) et `warrantyMonths` (durée garantie
+         * en mois). Tous deux nullables — pas de garantie suivie par défaut.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE receipts ADD COLUMN purchasedAt INTEGER")
+                db.execSQL("ALTER TABLE receipts ADD COLUMN warrantyMonths INTEGER")
+            }
+        }
+
         fun get(context: Context): ReceiptDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -45,7 +57,7 @@ internal abstract class ReceiptDatabase : RoomDatabase() {
                     ReceiptDatabase::class.java,
                     "receipts.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }

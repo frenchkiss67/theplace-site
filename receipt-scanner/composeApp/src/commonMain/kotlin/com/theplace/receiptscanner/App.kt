@@ -228,6 +228,8 @@ private fun AppContent(
                         onShare = viewModel::sharePdf,
                         onCategoryChange = viewModel::setCategory,
                         onAmountChange = viewModel::setAmount,
+                        onPurchasedAtChange = viewModel::setPurchasedAt,
+                        onWarrantyMonthsChange = viewModel::setWarrantyMonths,
                     )
                 }
             }
