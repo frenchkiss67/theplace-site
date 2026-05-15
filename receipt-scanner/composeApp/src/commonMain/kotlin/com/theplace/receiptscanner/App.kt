@@ -20,13 +20,18 @@ import com.theplace.receiptscanner.data.RestoreOutcome
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
+import com.theplace.receiptscanner.platform.DocumentWriter
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.OnboardingSettings
 import com.theplace.receiptscanner.platform.ScanOutcome
+import com.theplace.receiptscanner.platform.rememberCreateDocumentLauncher
 import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
 import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
 import com.theplace.receiptscanner.platform.rememberNotificationPermissionRequester
 import com.theplace.receiptscanner.resources.Res
+import com.theplace.receiptscanner.resources.export_csv_default_name
+import com.theplace.receiptscanner.resources.export_csv_done
+import com.theplace.receiptscanner.resources.export_csv_failed
 import com.theplace.receiptscanner.resources.export_done
 import com.theplace.receiptscanner.resources.export_failed
 import com.theplace.receiptscanner.resources.export_partial
@@ -42,7 +47,9 @@ import com.theplace.receiptscanner.resources.selection_share_label
 import com.theplace.receiptscanner.ui.OnboardingScreen
 import com.theplace.receiptscanner.ui.ReceiptDetailScreen
 import com.theplace.receiptscanner.ui.ReceiptListScreen
+import com.theplace.receiptscanner.ui.StatsScreen
 import com.theplace.receiptscanner.ui.theme.ReceiptScannerTheme
+import com.theplace.receiptscanner.util.buildReceiptsCsv
 import com.theplace.receiptscanner.viewmodel.ReceiptViewModel
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -50,6 +57,7 @@ import org.jetbrains.compose.resources.stringResource
 
 private const val ROUTE_LIST = "list"
 private const val ROUTE_DETAIL = "detail/{id}"
+private const val ROUTE_STATS = "stats"
 private const val ARG_ID = "id"
 
 // Durées de transition Material Expressive : ~250 ms slide, ~150 ms fade.
@@ -62,6 +70,7 @@ fun App(
     appLock: AppLockSettings,
     backupSettings: BackupSettings,
     onboarding: OnboardingSettings,
+    documentWriter: DocumentWriter,
     dynamicColorScheme: ColorScheme? = null,
 ) {
     ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
@@ -71,7 +80,12 @@ fun App(
             return@ReceiptScannerTheme
         }
         BiometricGate(settings = appLock) {
-            AppContent(viewModel = viewModel, appLock = appLock, backupSettings = backupSettings)
+            AppContent(
+                viewModel = viewModel,
+                appLock = appLock,
+                backupSettings = backupSettings,
+                documentWriter = documentWriter,
+            )
         }
     }
 }
@@ -81,6 +95,7 @@ private fun AppContent(
     viewModel: ReceiptViewModel,
     appLock: AppLockSettings,
     backupSettings: BackupSettings,
+    documentWriter: DocumentWriter,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -139,6 +154,24 @@ private fun AppContent(
         // Permission notifications (Android 13+) demandée à la 1re garantie configurée.
         val notifPermission = rememberNotificationPermissionRequester()
 
+        // Export CSV : SAF CreateDocument + écriture du contenu via DocumentWriter.
+        val csvDefaultName = stringResource(Res.string.export_csv_default_name)
+        val csvLauncher = rememberCreateDocumentLauncher(
+            mimeType = "text/csv",
+            defaultName = csvDefaultName,
+        ) { target ->
+            if (target == null) return@rememberCreateDocumentLauncher
+            scope.launch {
+                val csv = buildReceiptsCsv(receipts)
+                val ok = documentWriter.writeText(target, csv)
+                snackbarHostState.showSnackbar(
+                    getString(
+                        if (ok) Res.string.export_csv_done else Res.string.export_csv_failed,
+                    ),
+                )
+            }
+        }
+
         // SAF folder picker pour l'export multi-tickets.
         val exportLauncher = rememberExportFolderLauncher { target ->
             if (target == null) return@rememberExportFolderLauncher
@@ -187,6 +220,8 @@ private fun AppContent(
                     onToggleBackup = backupSettings::setEnabled,
                     onPickBackupFolder = { backupFolderLauncher.launch() },
                     onPickRestoreFolder = { restoreLauncher.launch() },
+                    onOpenStats = { navController.navigate(ROUTE_STATS) },
+                    onExportCsv = { csvLauncher.launch() },
                     snackbarHostState = snackbarHostState,
                     onScanClicked = { scanner.launch() },
                     onItemClick = { receipt ->
@@ -271,6 +306,27 @@ private fun AppContent(
                         },
                     )
                 }
+            }
+            // Statistiques : graphiques par catégorie (mois courant) + 12 mois.
+            composable(
+                route = ROUTE_STATS,
+                enterTransition = {
+                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
+                        fadeIn(animationSpec = tween(NAV_FADE_MS))
+                },
+                exitTransition = {
+                    slideOutOfContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
+                        fadeOut(animationSpec = tween(NAV_FADE_MS))
+                },
+                popExitTransition = {
+                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
+                        fadeOut(animationSpec = tween(NAV_FADE_MS))
+                },
+            ) {
+                StatsScreen(
+                    receipts = receipts,
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
     }

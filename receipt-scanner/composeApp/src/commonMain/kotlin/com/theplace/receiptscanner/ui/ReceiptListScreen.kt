@@ -97,6 +97,8 @@ import com.theplace.receiptscanner.resources.dialog_rename_title
 import com.theplace.receiptscanner.resources.empty_cta
 import com.theplace.receiptscanner.resources.empty_subtitle
 import com.theplace.receiptscanner.resources.empty_title
+import com.theplace.receiptscanner.resources.export_csv_menu
+import com.theplace.receiptscanner.resources.stats_menu
 import com.theplace.receiptscanner.resources.month_total
 import com.theplace.receiptscanner.resources.pages_label
 import com.theplace.receiptscanner.resources.receipts_count
@@ -144,6 +146,8 @@ fun ReceiptListScreen(
     onToggleBackup: (Boolean) -> Unit,
     onPickBackupFolder: () -> Unit,
     onPickRestoreFolder: () -> Unit,
+    onOpenStats: () -> Unit,
+    onExportCsv: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScanClicked: () -> Unit,
     onItemClick: (Receipt) -> Unit,
@@ -222,6 +226,20 @@ fun ReceiptListScreen(
                             expanded = overflowOpen,
                             onDismissRequest = { overflowOpen = false },
                         ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.stats_menu)) },
+                                onClick = {
+                                    overflowOpen = false
+                                    onOpenStats()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.export_csv_menu)) },
+                                onClick = {
+                                    overflowOpen = false
+                                    onExportCsv()
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.settings_title)) },
                                 onClick = {

@@ -49,6 +49,16 @@
     <string name="onboarding_next">Next</string>
     <string name="onboarding_done">Let's go</string>
 
+    <string name="stats_title">Statistics</string>
+    <string name="stats_empty">No spending recorded yet.</string>
+    <string name="stats_month_section">This month, by category</string>
+    <string name="stats_year_section">Last 12 months</string>
+    <string name="stats_menu">Statistics</string>
+    <string name="export_csv_menu">Export to CSV</string>
+    <string name="export_csv_done">CSV export complete</string>
+    <string name="export_csv_failed">CSV export failed</string>
+    <string name="export_csv_default_name">receipts.csv</string>
+
     <string name="selection_count">%1$d selected</string>
     <string name="selection_clear">Exit selection</string>
     <string name="selection_all">Select all</string>

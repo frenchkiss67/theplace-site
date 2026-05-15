@@ -38,6 +38,7 @@ class MainActivity : FragmentActivity() {
                 appLock = services.appLock,
                 backupSettings = services.backupSettings,
                 onboarding = services.onboarding,
+                documentWriter = services.documentWriter,
                 dynamicColorScheme = rememberDynamicColorScheme(),
             )
         }

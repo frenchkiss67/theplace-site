@@ -63,6 +63,16 @@
     <string name="onboarding_next">Suivant</string>
     <string name="onboarding_done">C'est parti</string>
 
+    <string name="stats_title">Statistiques</string>
+    <string name="stats_empty">Aucune dépense renseignée pour l'instant.</string>
+    <string name="stats_month_section">Ce mois-ci, par catégorie</string>
+    <string name="stats_year_section">12 derniers mois</string>
+    <string name="stats_menu">Statistiques</string>
+    <string name="export_csv_menu">Exporter en CSV</string>
+    <string name="export_csv_done">Export CSV terminé</string>
+    <string name="export_csv_failed">Export CSV impossible</string>
+    <string name="export_csv_default_name">tickets.csv</string>
+
     <string name="category_label">Catégorie</string>
     <string name="category_none">Sans catégorie</string>
     <string name="category_all">Toutes</string>
