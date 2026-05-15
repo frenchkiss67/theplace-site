@@ -752,6 +752,116 @@ lot (partage / suppression).
 - ⚠️ `Eagerly` garde la collection vivante toute la durée de la VM —
   bénin ici (StateFlow → StateFlow).
 
+**Note backup automatique** : la même infrastructure SAF est réutilisée
+par un `BackupWorker` périodique (WorkManager, 1×/jour, KEEP). Le
+`treeUri` cible est persisté via `takePersistableUriPermission` côté
+`AndroidBackupSettings` (à la différence de l'export ponctuel qui ne
+persiste rien), et un set de `fileName` déjà sauvegardés évite les
+doublons. Aucun service cloud propriétaire impliqué — c'est l'utilisateur
+qui choisit la destination (Drive, OneDrive, USB OTG, etc.).
+
+### ADR-12 — OCR on-device des tickets
+
+**Contexte** : la recherche initiale couvrait uniquement `name` (le
+libellé par défaut « Ticket du JJ/MM/YYYY » ou un nom saisi). Pour des
+tickets archivés en masse, c'est insuffisant — l'utilisateur veut
+retrouver un achat par le nom du commerçant ou un article. Le champ
+montant manuel est aussi pénible à saisir à chaque scan.
+
+Le périmètre initial de `CLAUDE.md` excluait l'OCR. La règle disait :
+« pas d'OCR du texte des tickets sans design explicite couvrant
+permissions, vie privée, sécurité » — d'où cet ADR.
+
+**Décision** :
+1. **ML Kit Text Recognition v2** (`com.google.mlkit:text-recognition:16.0.1`)
+   avec le modèle Latin embarqué dans l'APK (~5 Mo). 100 % on-device,
+   aucun appel réseau, aucune télémétrie.
+2. **Pipeline asynchrone** : juste après `repository.addFromScan`, le
+   `ReceiptViewModel` lance `runOcrInBackground` dans `viewModelScope`.
+   L'utilisateur voit le ticket archivé immédiatement, le texte arrive
+   ensuite (UI réactive via `Flow<List<Receipt>>`).
+3. **Rendu page par page** : `AndroidTextRecognizer` ouvre le PDF via
+   `PdfRenderer`, rend chaque page à ~1200 px de large en `Bitmap`,
+   passe à ML Kit, concatène les résultats. Bitmaps recyclés après usage.
+4. **Stockage** : nouvelle colonne `extractedText: String?` (migration
+   Room v2→v3, nullable, pas de backfill — les anciens tickets ne sont
+   pas re-scannés automatiquement).
+5. **Extraction structurée minimale** :
+   `ReceiptInfoExtractor.extractTotalCents(text)` heuristique simple
+   (regex sur lignes contenant « total » ou « montant », plus grand
+   montant trouvé). Si l'utilisateur n'a rien saisi entre-temps, le
+   total détecté pré-remplit `totalCents`.
+6. **Recherche enrichie** : `filteredByQuery` balaie maintenant
+   `name` ∪ `extractedText` (case-insensitive). Aucun changement UI —
+   la barre de recherche existante devient instantanément plus utile.
+
+**Conséquences** :
+- ✅ Vie privée : tout reste local, aucune permission supplémentaire.
+- ✅ Aucun changement de permissions Android.
+- ✅ `TextRecognizer` est exposé en interface commune, l'iOS pourra
+  brancher Vision Framework (`VNRecognizeTextRequest`) sans toucher au
+  ViewModel.
+- ⚠️ Modèle Latin uniquement. Pour l'arabe, le chinois, le japonais,
+  basculer sur un modèle séparé (changement de dépendance) si besoin.
+- ⚠️ Pas de re-scan rétroactif pour les tickets archivés avant la
+  migration. Si pertinent, une option « relancer l'OCR » dans le menu
+  overflow pourra être ajoutée.
+- ⚠️ Heuristique `extractTotalCents` simple — fausse parfois (montants
+  multiples sur la ligne, OCR imparfait). L'utilisateur peut toujours
+  corriger via le champ Montant du détail.
+
+### ADR-13 — Suivi des garanties et rappel J-30
+
+**Contexte** : un usage typique de l'archivage des tickets est la
+preuve d'achat pour garanties (électronique, électroménager). Sans
+notification, l'utilisateur oublie la date d'expiration. Aucun
+concurrent de la scène ne traite vraiment ce cas.
+
+**Décision** :
+1. **Modèle** : `purchasedAt: Long?` (date d'achat distincte de
+   `createdAt` — l'utilisateur peut scanner un ticket vieux de 6 mois)
+   et `warrantyMonths: Int?` (durée). Migration Room v3→v4.
+2. **UI détail** : section « Garantie » avec
+   - bouton qui ouvre un `DatePickerDialog` Material 3 pour
+     `purchasedAt`,
+   - 5 `FilterChip` pour la durée (Aucune / 6 mois / 1 an / 2 ans /
+     3 ans), désactivés tant qu'aucune date n'est posée,
+   - récap dynamique « Couverte jusqu'au JJ/MM/AAAA · Expire dans N
+     jour(s) » ou « Garantie expirée » en rouge.
+3. **Calcul** : `warrantyEndMs(purchasedAt, months)` ajoute les mois
+   sur `LocalDate` (`kotlinx-datetime`) — gère correctement les fins de
+   mois (31 janvier + 1 mois = 28/29 février).
+4. **Worker quotidien** : `WarrantyWorker` (CoroutineWorker), enqueue
+   `enqueueUniquePeriodicWork("warranty", KEEP, 1 jour flex 6h)`.
+   Balaie tous les tickets, notifie ceux dont `daysUntilEnd ∈ 0..30`,
+   marque l'ID comme notifié en `SharedPreferences` (clé
+   `warranty_notif/notified_ids`) pour éviter une notif par jour
+   pendant 30 jours.
+5. **Notification** : `NotificationChannel("warranties",
+   IMPORTANCE_DEFAULT)` créé une fois dans `Application.onCreate`,
+   libellés en français en dur (Compose Resources `getString` est
+   suspend, inutilisable depuis ce contexte). Tap → `MainActivity`
+   avec `FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`.
+6. **Permission** : `POST_NOTIFICATIONS` déclarée dans le manifest
+   (Android 13+). La demande runtime est différée pour ne pas spammer
+   au premier lancement — limitation connue, à compléter par un
+   `ActivityResultContracts.RequestPermission` au premier toggle d'une
+   garantie.
+
+**Conséquences** :
+- ✅ Tout local, aucun service tiers.
+- ✅ Helpers commonMain (`warrantyEndMs`, `daysUntilWarrantyEnd`,
+  `formatDateOnly`) testables sans Android.
+- ✅ Worker idempotent — l'utilisateur peut ouvrir et fermer l'app
+  autant qu'il veut, la planification reste KEEP.
+- ⚠️ Sans flow runtime de demande de permission, les notifs sont
+  muettes sur Android 13+ tant que l'utilisateur ne l'a pas accordée
+  manuellement via les Réglages → Apps → Notifications. À corriger en
+  polish ultérieur (`requestPermissionLauncher` dans `MainActivity`
+  déclenché au premier `setWarrantyMonths(receipt, non-null)`).
+- ⚠️ Une seule fréquence J-30. Évolutions possibles : configurable
+  (J-60, J-7 second rappel, etc.), à introduire avec un setting dédié.
+
 ---
 
 ## 9. Gestion des erreurs
@@ -806,15 +916,26 @@ scan, ouvrir un PDF).
 
 ## 12. Évolutions envisagées (post-v1)
 
+**Déjà livré** : preview PDF (ADR-9), Snackbar (ADR-10), sélection
+multiple + export SAF + backup auto (ADR-11), OCR on-device + extraction
+heuristique du total (ADR-12), suivi de garanties + notifs J-30
+(ADR-13), catégories + montant + total mensuel, recherche full-text
+(via OCR), animations de nav, app lock biométrique, traductions EN, tests
+Robolectric Room/PdfStorage, wrapper Gradle + CI.
+
+**Reste à explorer** :
+
 | Idée                                       | Coût        | Notes                                                    |
 |--------------------------------------------|-------------|----------------------------------------------------------|
-| OCR du montant et de la date               | Moyen       | ML Kit Text Recognition v2 ; UX d'édition à concevoir.   |
-| Catégories (course, restau, transport)     | Faible      | `category: String?` en base, filtre dans la liste.       |
-| Recherche plein-texte sur le nom           | Faible      | `LIKE '%...%'` ou Room FTS4 si volume.                   |
-| Export ZIP de tous les PDFs                | Faible      | Intent `ACTION_CREATE_DOCUMENT` + zip stream.            |
+| Demande runtime POST_NOTIFICATIONS         | Faible      | `RequestPermission` au premier toggle garantie.          |
+| Re-scan OCR rétroactif                     | Faible      | Bouton « relancer l'OCR » dans le menu overflow.         |
+| Extraction date d'achat depuis l'OCR       | Faible      | Regex sur les patterns date typiques + heuristiques.     |
 | Sync cloud (WebDAV, Drive)                 | Élevé       | Auth, conflits, vie privée, modèle de menace.            |
-| Preview PDF inline (Renderer Android)      | Moyen       | Écran détail dédié, recyclerView/LazyColumn de bitmaps.  |
-| Notifications de rappel d'archivage        | Faible      | WorkManager + heuristiques.                              |
+| Activation iOS (cibles + actuals)          | Élevé       | VisionKit + Vision Framework + SQLDelight, macOS requis. |
+| Export ZIP groupé                          | Faible      | Intent `ACTION_CREATE_DOCUMENT` + zip stream.            |
+| Notifications de rappel d'archivage        | Faible      | « Pas de scan depuis 2 semaines ? » via WorkManager.     |
+| OCR multi-langues (arabe, chinois…)        | Moyen       | Modèle ML Kit séparé, opt-in.                            |
+| Tests UI Compose                           | Moyen       | androidx.compose.ui.test + test runner.                  |
 
 ---
 

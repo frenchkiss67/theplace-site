@@ -21,18 +21,25 @@ partageables et exportables.
 
 ### Stack technique
 
-| Couche                | Choix                                                              |
-|-----------------------|--------------------------------------------------------------------|
-| Langage               | Kotlin **2.0.21** (Multiplatform, JVM target 17)                   |
-| UI                    | **Compose Multiplatform 1.7.0** + Material 3 (dynamic color Android 12+ injecté) |
-| Architecture          | MVVM (ViewModel KMP + StateFlow + Repository commun)               |
-| Scan/OCR de documents | **ML Kit Document Scanner** (Google Play Services, `androidMain`)  |
-| Persistance           | Room 2.6 (Android-only, derrière une interface commune) + filesystem privé |
-| Partage inter-app     | `FileProvider` côté Android                                        |
-| Build                 | Android Gradle Plugin 8.5, Gradle 8.7, KSP (Room)                  |
-| `minSdk`              | 24 (Android 7.0)                                                   |
-| `compileSdk`/`target` | 34                                                                 |
-| Cibles                | `androidTarget()` active ; `iosX64/iosArm64/iosSimulatorArm64` prêtes |
+| Couche                  | Choix                                                                                  |
+|-------------------------|----------------------------------------------------------------------------------------|
+| Langage                 | Kotlin **2.0.21** (Multiplatform, JVM target 17)                                       |
+| UI                      | **Compose Multiplatform 1.7.0** + Material 3 (dynamic color Android 12+ injecté)       |
+| Navigation              | `org.jetbrains.androidx.navigation:navigation-compose` 2.8.0-alpha10 (KMP)             |
+| Architecture            | MVVM (ViewModel KMP + StateFlow + Repository commun)                                   |
+| Scan de documents       | **ML Kit Document Scanner** (Google Play Services, `androidMain`)                      |
+| OCR (texte des tickets) | **ML Kit Text Recognition v2**, on-device, modèle Latin embarqué (`androidMain`)       |
+| Persistance             | Room 2.6 (Android-only, derrière une interface commune) + filesystem privé             |
+| Partage inter-app       | `FileProvider` côté Android, `ACTION_SEND` / `ACTION_SEND_MULTIPLE`                    |
+| Export utilisateur      | Storage Access Framework (`OpenDocumentTree`) — copie via `DocumentsContract`          |
+| App lock                | `androidx.biometric` 1.2.0-alpha05 (biométrie + fallback PIN/motif)                    |
+| Tâches de fond          | `androidx.work` 2.9.1 (backup auto SAF + notifications garantie)                       |
+| Build                   | Android Gradle Plugin 8.5, Gradle 8.7 (wrapper livré), KSP (Room)                      |
+| `minSdk`                | 24 (Android 7.0)                                                                       |
+| `compileSdk`/`target`   | 34                                                                                     |
+| Cibles                  | `androidTarget()` active ; `iosX64/iosArm64/iosSimulatorArm64` prêtes                  |
+| Tests                   | `commonTest` (kotlin-test + coroutines-test) ; `androidUnitTest` (Robolectric 4.13)   |
+| i18n                    | Compose Resources, FR par défaut, EN dans `values-en/`                                 |
 
 ### Pourquoi ML Kit Document Scanner
 
@@ -48,34 +55,50 @@ partageables et exportables.
 
 ```
 receipt-scanner/
-├── build.gradle.kts                  # Plugins racine (KMP, CMP, AGP, KSP)
-├── settings.gradle.kts               # includes :composeApp
+├── build.gradle.kts                       # Plugins racine (KMP, CMP, AGP, KSP)
+├── settings.gradle.kts                    # includes :composeApp
 ├── gradle.properties
-├── gradle/wrapper/                   # gradle-wrapper.properties (8.7)
+├── gradle/wrapper/                        # gradle-wrapper.{properties,jar} (8.7)
+├── gradlew / gradlew.bat                  # Wrapper livré (le clone build dès l'arrivée)
 ├── README.md
-├── design.md                         # Design doc + ADRs (1..8)
+├── design.md                              # Design doc + ADRs (1..13)
 └── composeApp/
-    ├── build.gradle.kts              # KMP : androidTarget() + iOS commenté
+    ├── build.gradle.kts                   # KMP : androidTarget() + iOS commenté
     ├── proguard-rules.pro
     └── src/
         ├── commonMain/
         │   ├── kotlin/com/theplace/receiptscanner/
-        │   │   ├── App.kt                            # @Composable entry
-        │   │   ├── data/                             # Receipt + ReceiptRepository (interface)
-        │   │   ├── platform/                         # expect : scanner, PdfActions, PlatformScanResult
-        │   │   ├── ui/                               # ReceiptListScreen + theme/
-        │   │   ├── util/                             # Formatting, Clock (kotlinx-datetime)
-        │   │   └── viewmodel/                        # ReceiptViewModel (lifecycle KMP)
-        │   └── composeResources/values/strings.xml   # Strings UI (Compose Resources)
+        │   │   ├── App.kt                          # NavHost + SnackbarHost + BiometricGate
+        │   │   ├── data/                           # Receipt + ReceiptCategory + ReceiptRepository
+        │   │   ├── platform/                       # expect : scanner, PdfActions, PdfPreview,
+        │   │   │                                   #          PdfThumbnail, ExportTarget,
+        │   │   │                                   #          BackHandler, AppLockSettings,
+        │   │   │                                   #          BackupSettings, TextRecognizer
+        │   │   ├── ui/                             # ListScreen + DetailScreen + SortOption +
+        │   │   │                                   #   CategoryLabels + theme/
+        │   │   ├── util/                           # Formatting (date/amount), Clock,
+        │   │   │                                   #   ReceiptInfoExtractor (OCR heuristics),
+        │   │   │                                   #   Warranty (end + days left)
+        │   │   └── viewmodel/                      # ReceiptViewModel
+        │   ├── composeResources/values/strings.xml # Strings FR (par défaut)
+        │   └── composeResources/values-en/strings.xml # Strings EN
+        ├── commonTest/                             # Tests JVM partagés (Formatting, ViewModel,
+        │                                           #   SortOption, ReceiptInfoExtractor, Warranty)
+        ├── androidUnitTest/                        # Robolectric : Room DAO + PdfStorage
         └── androidMain/
-            ├── AndroidManifest.xml                   # Activity + FileProvider
+            ├── AndroidManifest.xml                 # Activity + FileProvider + POST_NOTIFICATIONS
             ├── kotlin/com/theplace/receiptscanner/
-            │   ├── MainActivity.kt
-            │   ├── ReceiptScannerApp.kt              # Application + ServiceLocator
+            │   ├── MainActivity.kt                 # FragmentActivity (requis pour BiometricPrompt)
+            │   ├── ReceiptScannerApp.kt            # Application + ServiceLocator init
             │   ├── ServiceLocator.kt
-            │   ├── data/                             # ReceiptEntity + DAO + DB Room + AndroidReceiptRepository
-            │   └── platform/                         # actual ML Kit + AndroidPdfActions + PdfStorage
-            └── res/                                  # Manifest strings, themes, file_paths, backup, icône
+            │   ├── data/                           # ReceiptEntity + DAO + DB Room (migrations
+            │   │                                   #   1→2 catégories, 2→3 OCR, 3→4 garanties)
+            │   ├── platform/                       # actual ML Kit (scan + OCR), PdfActions,
+            │   │                                   #   PdfStorage, ThumbnailCache, BackupSettings,
+            │   │                                   #   AppLock (BiometricPrompt + session)
+            │   └── work/                           # BackupWorker, WarrantyWorker, Schedulers,
+            │                                       #   WarrantyNotifier (channel + notif)
+            └── res/                                # Manifest strings, themes, file_paths, backup, icône
 ```
 
 ### Conventions de code
@@ -89,8 +112,11 @@ receipt-scanner/
   (scanner, PDF) ou par une interface plateforme (Repository, PdfActions).
 - **Commentaires en français**, courts, uniquement quand le « pourquoi »
   n'est pas évident depuis le code.
-- **Pas de permissions runtime** déclarées : le scanner ML Kit gère la
-  caméra dans son propre process.
+- **Permissions runtime minimales** : ML Kit Document Scanner gère la
+  caméra dans son propre process (aucune permission caméra demandée).
+  Seule `POST_NOTIFICATIONS` est déclarée (Android 13+) pour les rappels
+  de garantie ; la demande runtime à l'utilisateur est différée à la
+  première activation effective.
 
 ### Flux de données
 
@@ -111,33 +137,61 @@ Android actual : GmsDocumentScanning → IntentSender → ActivityResult
      - dao.insert(ReceiptEntity)                  → Room
         ↓
 [Flow<List<Receipt>>] observé par l'UI → recomposition de la liste.
+
+Et en arrière-plan, sans bloquer l'utilisateur :
+
+[ReceiptViewModel.runOcrInBackground]                              (commonMain)
+        ↓
+[TextRecognizer.extractText(receipt)]                              (expect)
+        ↓
+Android actual : PdfRenderer → Bitmap → ML Kit Text Recognition
+        ↓
+[ReceiptInfoExtractor.extractTotalCents(text)]  → pré-remplit le montant
+        ↓
+[ReceiptRepository.update(receipt.copy(extractedText, totalCents))]
+        ↓
+La recherche en commonMain (`filteredByQuery`) couvre aussi `extractedText`.
 ```
 
 ### Stockage
 
 - **PDFs** : `filesDir/receipts/ticket_<yyyyMMdd_HHmmss>.pdf` — privés à
   l'app, supprimés à la désinstallation, inclus dans Android Backup.
-- **Base** : `receipts.db` (Room) — une seule table `receipts` (`id`,
-  `name`, `fileName`, `pageCount`, `sizeBytes`, `createdAt`).
+- **Vignettes PDF** : `cacheDir/thumbs/<fileName>.png` — rendues à la
+  demande (~400 px de large) via `PdfRenderer`, supprimées avec le
+  ticket. Le système peut purger le cache sous pression de stockage —
+  les vignettes sont re-rendues à la prochaine ouverture.
+- **Base** : `receipts.db` (Room v4) — table `receipts` (`id`, `name`,
+  `fileName`, `pageCount`, `sizeBytes`, `createdAt`, `category`,
+  `totalCents`, `extractedText`, `purchasedAt`, `warrantyMonths`).
+- **Préférences** : 3 fichiers SharedPreferences distincts :
+  - `app_lock` : flag biométrie activée.
+  - `backup_settings` : URI du dossier de backup auto + set des
+    fileNames déjà sauvegardés.
+  - `warranty_notif` : set des IDs déjà notifiés J-30 (anti-spam).
 - **Partage externe** : authority `${applicationId}.fileprovider` mappée
   sur `files-path name="receipts"` dans `res/xml/file_paths.xml`.
+- **Export utilisateur** : copies ponctuelles ou périodiques (worker)
+  vers un dossier SAF choisi par l'utilisateur, jamais vers du stockage
+  cloud propriétaire.
 
 ### Commandes utiles
 
 ```bash
-# Première initialisation du wrapper Gradle (non livré)
 cd receipt-scanner
-gradle wrapper --gradle-version 8.7
 
-# Build debug Android
+# Build debug Android (le wrapper Gradle est livré, ./gradlew marche au clone)
 ./gradlew :composeApp:assembleDebug
 
 # Installation sur appareil/émulateur connecté
 ./gradlew :composeApp:installDebug
 
-# Tests JVM commonMain (à étoffer)
+# Tests JVM (commonTest + androidUnitTest via Robolectric)
 ./gradlew :composeApp:testDebugUnitTest
 ```
+
+CI : `.github/workflows/receipt-scanner-ci.yml` lance les tests puis
+l'`assembleDebug` sur chaque push/PR touchant le dossier.
 
 ### Points d'attention
 
@@ -145,16 +199,31 @@ gradle wrapper --gradle-version 8.7
   `org.jetbrains.kotlin.plugin.compose` (séparé depuis Kotlin 2.0).
 - ML Kit Document Scanner est en **`16.0.0-beta1`** : vérifier la dispo
   d'une release stable lors d'une mise à jour des dépendances.
+- ML Kit Text Recognition v2 (`16.0.1`) : modèle Latin embarqué dans
+  l'APK, aucun appel réseau. Pour les langues non-latines (arabe,
+  chinois, etc.) il faudrait basculer sur un modèle séparé.
 - Compose Resources expose les strings via `Res.string.*` ; le package
   est configuré dans `composeApp/build.gradle.kts`
   (`packageOfResClass = "com.theplace.receiptscanner.resources"`).
-- Pour activer iOS : décommenter les 3 cibles dans
+- `BiometricPrompt` exige une `FragmentActivity` (et non
+  `ComponentActivity`) — c'est la raison pour laquelle `MainActivity`
+  hérite de `FragmentActivity`, pas de `ComponentActivity` malgré
+  l'usage de Compose.
+- `androidx.navigation:navigation-compose` est en **alpha** côté KMP
+  (`2.8.0-alpha10`). Surveiller les évolutions API jusqu'à la stable.
+- **iOS** non activé. Pour le faire : décommenter les 3 cibles dans
   `composeApp/build.gradle.kts`, créer `iosMain/` avec les `actual`
   (VisionKit pour le scan, `UIActivityViewController` pour le partage,
-  SQLDelight pour la persistance), compiler sur macOS.
-- L'app cible un usage personnel : pas d'OCR du texte des tickets, pas de
-  cloud sync. Toute évolution dans ces directions doit passer par un
-  design explicite (permissions, vie privée, sécurité).
+  SQLDelight pour la persistance, `CGPDFDocument` pour `PdfPreview` et
+  `PdfThumbnail`, `UIDocumentPickerViewController` pour
+  `PlatformExportTarget`, Vision Framework pour l'OCR), compiler sur
+  macOS. Tout le code commun est conçu pour cette extension.
+- **Périmètre actuel** : usage personnel, tout local. L'OCR (ML Kit
+  on-device, ADR-12) et le backup auto (SAF utilisateur, pas de cloud
+  propriétaire, ADR-11) restent dans cet esprit — pas de télémétrie,
+  pas de service tiers. Toute évolution introduisant un service distant
+  (cloud sync, partage multi-utilisateurs, etc.) doit passer par un
+  ADR dédié couvrant permissions, vie privée et sécurité.
 
 ---
 
