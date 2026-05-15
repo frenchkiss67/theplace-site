@@ -59,9 +59,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.platform.PdfThumbnail
 import com.theplace.receiptscanner.platform.PlatformBackHandler
 import com.theplace.receiptscanner.resources.Res
 import com.theplace.receiptscanner.resources.action_delete
@@ -409,10 +412,11 @@ private fun ReceiptCard(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
-                Icon(
-                    imageVector = Icons.Default.PictureAsPdf,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                PdfThumbnail(
+                    receipt = receipt,
+                    modifier = Modifier
+                        .size(width = 56.dp, height = 72.dp)
+                        .clip(RoundedCornerShape(6.dp)),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

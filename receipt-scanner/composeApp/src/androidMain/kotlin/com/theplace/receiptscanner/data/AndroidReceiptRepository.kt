@@ -3,6 +3,7 @@ package com.theplace.receiptscanner.data
 import android.content.Context
 import com.theplace.receiptscanner.platform.PdfStorage
 import com.theplace.receiptscanner.platform.PlatformScanResult
+import com.theplace.receiptscanner.platform.ThumbnailCache
 import com.theplace.receiptscanner.util.defaultReceiptName
 import com.theplace.receiptscanner.util.nowMs
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.map
 internal class AndroidReceiptRepository(
     private val dao: ReceiptDao,
     private val storage: PdfStorage,
+    private val thumbnails: ThumbnailCache,
 ) : ReceiptRepository {
 
     override fun observeAll(): Flow<List<Receipt>> =
@@ -39,13 +41,18 @@ internal class AndroidReceiptRepository(
 
     override suspend fun delete(receipt: Receipt) {
         storage.delete(receipt.fileName)
+        thumbnails.delete(receipt.fileName)
         dao.delete(receipt.toEntity())
     }
 
     companion object {
         fun from(context: Context): AndroidReceiptRepository {
             val db = ReceiptDatabase.get(context)
-            return AndroidReceiptRepository(db.receiptDao(), PdfStorage(context))
+            return AndroidReceiptRepository(
+                dao = db.receiptDao(),
+                storage = PdfStorage(context),
+                thumbnails = ThumbnailCache(context),
+            )
         }
     }
 }
