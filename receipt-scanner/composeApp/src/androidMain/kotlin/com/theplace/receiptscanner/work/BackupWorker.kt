@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.theplace.receiptscanner.ReceiptScannerApp
 import com.theplace.receiptscanner.platform.AndroidBackupSettings
 import com.theplace.receiptscanner.platform.PdfStorage
+import com.theplace.receiptscanner.util.ensurePdfSuffix
 import kotlinx.coroutines.flow.first
 
 /**
@@ -44,11 +45,7 @@ internal class BackupWorker(
             val source = storage.file(receipt.fileName)
             if (!source.exists()) continue
 
-            val docName = if (receipt.fileName.endsWith(".pdf", ignoreCase = true)) {
-                receipt.fileName
-            } else {
-                "${receipt.fileName}.pdf"
-            }
+            val docName = ensurePdfSuffix(receipt.fileName)
             val target = runCatching {
                 DocumentsContract.createDocument(resolver, parent, "application/pdf", docName)
             }.getOrNull()

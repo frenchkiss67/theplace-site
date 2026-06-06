@@ -712,24 +712,13 @@ private fun SettingsDialog(
         text = {
             Column {
                 // --- Verrouillage biométrique ---
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(Res.string.settings_lock_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(Res.string.settings_lock_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = lockEnabled && lockAvailable,
-                        enabled = lockAvailable,
-                        onCheckedChange = onToggleLock,
-                    )
-                }
+                SettingToggleRow(
+                    label = stringResource(Res.string.settings_lock_label),
+                    description = stringResource(Res.string.settings_lock_description),
+                    checked = lockEnabled && lockAvailable,
+                    enabled = lockAvailable,
+                    onCheckedChange = onToggleLock,
+                )
                 if (!lockAvailable) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -740,27 +729,17 @@ private fun SettingsDialog(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 // --- Sauvegarde automatique ---
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(Res.string.settings_backup_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(Res.string.settings_backup_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = backupEnabled && backupFolderLabel.isNotEmpty(),
-                        enabled = backupFolderLabel.isNotEmpty(),
-                        onCheckedChange = onToggleBackup,
-                    )
-                }
+                val hasBackupFolder = backupFolderLabel.isNotEmpty()
+                SettingToggleRow(
+                    label = stringResource(Res.string.settings_backup_label),
+                    description = stringResource(Res.string.settings_backup_description),
+                    checked = backupEnabled && hasBackupFolder,
+                    enabled = hasBackupFolder,
+                    onCheckedChange = onToggleBackup,
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (backupFolderLabel.isNotEmpty()) {
+                    text = if (hasBackupFolder) {
                         stringResource(Res.string.settings_backup_folder_label, backupFolderLabel)
                     } else {
                         stringResource(Res.string.settings_backup_folder_missing)
@@ -769,13 +748,10 @@ private fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TextButton(onClick = onPickBackupFolder) {
-                    Text(
-                        if (backupFolderLabel.isNotEmpty()) {
-                            stringResource(Res.string.settings_backup_change)
-                        } else {
-                            stringResource(Res.string.settings_backup_pick)
-                        },
-                    )
+                    Text(stringResource(
+                        if (hasBackupFolder) Res.string.settings_backup_change
+                        else Res.string.settings_backup_pick,
+                    ))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 // --- Restauration depuis un dossier ---
@@ -793,20 +769,12 @@ private fun SettingsDialog(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 // --- Mode rafale ---
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(Res.string.settings_continuous_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(Res.string.settings_continuous_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(checked = continuousScan, onCheckedChange = onToggleContinuousScan)
-                }
+                SettingToggleRow(
+                    label = stringResource(Res.string.settings_continuous_label),
+                    description = stringResource(Res.string.settings_continuous_description),
+                    checked = continuousScan,
+                    onCheckedChange = onToggleContinuousScan,
+                )
             }
         },
         confirmButton = {
@@ -815,6 +783,31 @@ private fun SettingsDialog(
             }
         },
     )
+}
+
+/**
+ * Ligne de réglage uniforme : libellé + description sur deux lignes à
+ * gauche, Switch à droite. Factorisée pour les 3 toggles du SettingsDialog.
+ */
+@Composable
+private fun SettingToggleRow(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+    }
 }
 
 @Composable

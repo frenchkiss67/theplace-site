@@ -173,23 +173,6 @@ private fun openRenderer(file: File): PdfRenderer? = runCatching {
 
 /** Rend une page en bitmap calibré sur ~2x la largeur logique pour la netteté. */
 private fun renderPage(renderer: PdfRenderer, index: Int): Pair<Bitmap?, Float> {
-    return runCatching {
-        renderer.openPage(index).use { page ->
-            val targetWidth = 1600
-            val scale = targetWidth.toFloat() / page.width
-            val width = targetWidth
-            val height = (page.height * scale).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            bitmap to (width.toFloat() / height.toFloat())
-        }
-    }.getOrElse { null to 0.7f }
-}
-
-private inline fun <T> PdfRenderer.Page.use(block: (PdfRenderer.Page) -> T): T {
-    try {
-        return block(this)
-    } finally {
-        close()
-    }
+    val bitmap = renderer.renderPageBitmap(index, targetWidth = 1600) ?: return null to 0.7f
+    return bitmap to (bitmap.width.toFloat() / bitmap.height.toFloat())
 }

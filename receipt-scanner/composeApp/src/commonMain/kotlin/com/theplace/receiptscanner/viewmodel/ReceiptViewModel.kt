@@ -6,6 +6,7 @@ import com.theplace.receiptscanner.data.Receipt
 import com.theplace.receiptscanner.data.ReceiptCategory
 import com.theplace.receiptscanner.data.ReceiptRepository
 import com.theplace.receiptscanner.data.RestoreOutcome
+import com.theplace.receiptscanner.data.SaveScanOutcome
 import com.theplace.receiptscanner.platform.ExportOutcome
 import com.theplace.receiptscanner.platform.PdfActions
 import com.theplace.receiptscanner.platform.PlatformExportTarget
@@ -60,12 +61,6 @@ class ReceiptViewModel(
         started = SharingStarted.Eagerly,
         initialValue = emptyList(),
     )
-
-    /** Issue d'un archivage : succès avec le ticket inséré, ou échec (disque plein, fichier corrompu…). */
-    sealed interface SaveScanOutcome {
-        data class Success(val receipt: Receipt) : SaveScanOutcome
-        data class Failure(val message: String) : SaveScanOutcome
-    }
 
     fun saveScan(result: PlatformScanResult, onSaved: (SaveScanOutcome) -> Unit) {
         viewModelScope.launch {

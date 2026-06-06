@@ -1,6 +1,9 @@
 package com.theplace.receiptscanner
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,6 +13,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavType
@@ -18,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.theplace.receiptscanner.data.RestoreOutcome
+import com.theplace.receiptscanner.data.SaveScanOutcome
 import com.theplace.receiptscanner.platform.AppLockSettings
 import com.theplace.receiptscanner.platform.BackupSettings
 import com.theplace.receiptscanner.platform.BiometricGate
@@ -70,6 +75,12 @@ private const val ARG_ID = "id"
 private const val NAV_SLIDE_MS = 250
 private const val NAV_FADE_MS = 150
 
+private fun AnimatedContentTransitionScope<*>.navSlideIn(direction: SlideDirection): EnterTransition =
+    slideIntoContainer(direction, tween(NAV_SLIDE_MS)) + fadeIn(tween(NAV_FADE_MS))
+
+private fun AnimatedContentTransitionScope<*>.navSlideOut(direction: SlideDirection): ExitTransition =
+    slideOutOfContainer(direction, tween(NAV_SLIDE_MS)) + fadeOut(tween(NAV_FADE_MS))
+
 @Composable
 fun App(
     viewModel: ReceiptViewModel,
@@ -119,23 +130,23 @@ private fun AppContent(
     val backupFolderLabel by backupSettings.folderLabel.collectAsState()
     val continuousScan by scanPreferences.continuousScan.collectAsState()
 
-        // `scannerRef` permet à la lambda de se référencer elle-même pour le
-        // mode rafale (relance du scanner après chaque scan réussi).
-        val scannerRef = remember { object { var value: DocumentScannerLauncher? = null } }
+        // Holder pour permettre à la lambda du scanner de se relancer en
+        // mode rafale — sinon forward-reference Kotlin sur `scanner` val.
+        val scannerHolder = remember { mutableStateOf<DocumentScannerLauncher?>(null) }
         val scanner = rememberDocumentScannerLauncher { outcome ->
             when (outcome) {
                 is ScanOutcome.Success -> viewModel.saveScan(outcome.result) { saveResult ->
                     when (saveResult) {
-                        is ReceiptViewModel.SaveScanOutcome.Success -> {
+                        is SaveScanOutcome.Success -> {
                             scope.launch {
                                 snackbarHostState.showSnackbar(
                                     getString(Res.string.receipt_saved, saveResult.receipt.name)
                                 )
                             }
                             // Mode rafale : enchaîne immédiatement sur un nouveau scan.
-                            if (continuousScan) scannerRef.value?.launch()
+                            if (continuousScan) scannerHolder.value?.launch()
                         }
-                        is ReceiptViewModel.SaveScanOutcome.Failure -> scope.launch {
+                        is SaveScanOutcome.Failure -> scope.launch {
                             snackbarHostState.showSnackbar(
                                 getString(Res.string.scan_save_failed, saveResult.message)
                             )
@@ -152,7 +163,7 @@ private fun AppContent(
                 }
             }
         }
-        scannerRef.value = scanner
+        scannerHolder.value = scanner
 
         // SAF folder picker pour la configuration du dossier de backup auto.
         val backupFolderLauncher = rememberExportFolderLauncher { target ->
@@ -224,16 +235,10 @@ private fun AppContent(
             // glisse vers la droite quand on revient depuis le détail.
             composable(
                 route = ROUTE_LIST,
-                enterTransition = { fadeIn(animationSpec = tween(NAV_FADE_MS)) },
-                exitTransition = { fadeOut(animationSpec = tween(NAV_FADE_MS)) },
-                popEnterTransition = {
-                    slideIntoContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
-                        fadeIn(animationSpec = tween(NAV_FADE_MS))
-                },
-                popExitTransition = {
-                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
-                        fadeOut(animationSpec = tween(NAV_FADE_MS))
-                },
+                enterTransition = { fadeIn(tween(NAV_FADE_MS)) },
+                exitTransition = { fadeOut(tween(NAV_FADE_MS)) },
+                popEnterTransition = { navSlideIn(SlideDirection.End) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
             ) {
                 ReceiptListScreen(
                     receipts = receipts,
@@ -290,22 +295,10 @@ private fun AppContent(
             composable(
                 route = ROUTE_DETAIL,
                 arguments = listOf(navArgument(ARG_ID) { type = NavType.LongType }),
-                enterTransition = {
-                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
-                        fadeIn(animationSpec = tween(NAV_FADE_MS))
-                },
-                exitTransition = {
-                    slideOutOfContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
-                        fadeOut(animationSpec = tween(NAV_FADE_MS))
-                },
-                popEnterTransition = {
-                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
-                        fadeIn(animationSpec = tween(NAV_FADE_MS))
-                },
-                popExitTransition = {
-                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
-                        fadeOut(animationSpec = tween(NAV_FADE_MS))
-                },
+                enterTransition = { navSlideIn(SlideDirection.Start) },
+                exitTransition = { navSlideOut(SlideDirection.Start) },
+                popEnterTransition = { navSlideIn(SlideDirection.Start) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
             ) { entry ->
                 val id = entry.arguments?.getLong(ARG_ID) ?: -1L
                 val receipt = receipts.firstOrNull { it.id == id }
@@ -354,18 +347,9 @@ private fun AppContent(
             // Statistiques : graphiques par catégorie (mois courant) + 12 mois.
             composable(
                 route = ROUTE_STATS,
-                enterTransition = {
-                    slideIntoContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
-                        fadeIn(animationSpec = tween(NAV_FADE_MS))
-                },
-                exitTransition = {
-                    slideOutOfContainer(SlideDirection.Start, tween(NAV_SLIDE_MS)) +
-                        fadeOut(animationSpec = tween(NAV_FADE_MS))
-                },
-                popExitTransition = {
-                    slideOutOfContainer(SlideDirection.End, tween(NAV_SLIDE_MS)) +
-                        fadeOut(animationSpec = tween(NAV_FADE_MS))
-                },
+                enterTransition = { navSlideIn(SlideDirection.Start) },
+                exitTransition = { navSlideOut(SlideDirection.Start) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
             ) {
                 StatsScreen(
                     receipts = receipts,

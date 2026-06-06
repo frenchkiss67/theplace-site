@@ -10,7 +10,9 @@ import com.theplace.receiptscanner.platform.PlatformExportTarget
 import com.theplace.receiptscanner.platform.PlatformScanResult
 import com.theplace.receiptscanner.platform.ThumbnailCache
 import com.theplace.receiptscanner.util.defaultReceiptName
+import com.theplace.receiptscanner.util.ensurePdfSuffix
 import com.theplace.receiptscanner.util.nowMs
+import com.theplace.receiptscanner.util.sanitizeFileName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -91,7 +93,7 @@ internal class AndroidReceiptRepository(
                     val lastModified = if (!c.isNull(3)) c.getLong(3) else nowMs()
 
                     if (mime != "application/pdf" && !displayName.endsWith(".pdf", true)) continue
-                    val targetFileName = sanitizeFileName(displayName)
+                    val targetFileName = ensurePdfSuffix(sanitizeFileName(displayName))
                     if (targetFileName in existing) {
                         skipped++
                         continue
@@ -147,9 +149,3 @@ internal class AndroidReceiptRepository(
     }
 }
 
-/** Sanitise un nom de fichier SAF restoré pour qu'il rentre dans `filesDir/receipts`. */
-private fun sanitizeFileName(raw: String): String {
-    val forbidden = charArrayOf('/', '\\', '?', '*', ':', '|', '"', '<', '>')
-    val cleaned = raw.trim().map { if (it in forbidden) '_' else it }.joinToString("")
-    return if (cleaned.endsWith(".pdf", ignoreCase = true)) cleaned else "$cleaned.pdf"
-}

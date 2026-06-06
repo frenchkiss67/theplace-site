@@ -7,6 +7,8 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.widget.Toast
 import com.theplace.receiptscanner.data.Receipt
+import com.theplace.receiptscanner.util.ensurePdfSuffix
+import com.theplace.receiptscanner.util.sanitizeFileName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -79,13 +81,13 @@ internal class AndroidPdfActions(
                 lastError = "Fichier introuvable : ${receipt.fileName}"
                 continue
             }
-            val docName = sanitizeFileName(receipt.name).ifBlank { receipt.fileName }
+            val docName = ensurePdfSuffix(sanitizeFileName(receipt.name).ifBlank { receipt.fileName })
             val destUri: Uri? = try {
                 DocumentsContract.createDocument(
                     resolver,
                     parent,
                     "application/pdf",
-                    if (docName.endsWith(".pdf", ignoreCase = true)) docName else "$docName.pdf",
+                    docName,
                 )
             } catch (t: Throwable) {
                 lastError = t.message ?: "Création du document refusée"
@@ -114,8 +116,3 @@ internal class AndroidPdfActions(
     }
 }
 
-/** Retire les caractères interdits dans les noms de fichiers (FAT/exFAT/Android SAF). */
-private fun sanitizeFileName(raw: String): String {
-    val forbidden = charArrayOf('/', '\\', '?', '*', ':', '|', '"', '<', '>')
-    return raw.trim().map { c -> if (c in forbidden) '_' else c }.joinToString("")
-}

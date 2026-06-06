@@ -1,8 +1,6 @@
 package com.theplace.receiptscanner.platform
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import com.google.android.gms.tasks.Tasks
@@ -37,17 +35,9 @@ internal class AndroidTextRecognizer(private val context: Context) : TextRecogni
     }
 
     private fun appendPageText(renderer: PdfRenderer, index: Int, out: StringBuilder) {
-        val page = renderer.openPage(index)
+        // ~1200 px : compromis qualité OCR / mémoire (preview 1600, vignette 400).
+        val bitmap = renderer.renderPageBitmap(index, targetWidth = 1200) ?: return
         try {
-            // ~1200 px de large : compromis qualité OCR / mémoire.
-            val targetWidth = 1200
-            val scale = targetWidth.toFloat() / page.width
-            val w = targetWidth
-            val h = (page.height * scale).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply {
-                eraseColor(Color.WHITE)
-            }
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
             val image = InputImage.fromBitmap(bitmap, 0)
             // Tasks.await blocant — OK ici, on est sur Dispatchers.IO.
             val result = runCatching { Tasks.await(recognizer.process(image)) }.getOrNull()
@@ -55,9 +45,8 @@ internal class AndroidTextRecognizer(private val context: Context) : TextRecogni
                 if (out.isNotEmpty()) out.append("\n\n")
                 out.append(result.text)
             }
-            bitmap.recycle()
         } finally {
-            page.close()
+            bitmap.recycle()
         }
     }
 }

@@ -3,7 +3,6 @@ package com.theplace.receiptscanner.platform
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
@@ -92,27 +91,10 @@ internal class ThumbnailCache(private val context: Context) {
     private fun render(pdf: File): Bitmap? = runCatching {
         ParcelFileDescriptor.open(pdf, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
             PdfRenderer(pfd).use { renderer ->
-                renderPage(renderer)
+                renderer.renderPageBitmap(index = 0, targetWidth = 400)
             }
         }
     }.getOrNull()
-
-    private fun renderPage(renderer: PdfRenderer): Bitmap {
-        val page = renderer.openPage(0)
-        try {
-            val targetWidth = 400
-            val scale = targetWidth.toFloat() / page.width
-            val width = targetWidth
-            val height = (page.height * scale).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            // Fond blanc, sinon les zones transparentes apparaissent en noir.
-            bitmap.eraseColor(Color.WHITE)
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            return bitmap
-        } finally {
-            page.close()
-        }
-    }
 
     private fun persist(bitmap: Bitmap, file: File) {
         runCatching {
