@@ -52,7 +52,9 @@ class FormattingTest {
 
     @Test
     fun formatSize_gigabytes() {
-        val bytes = (2.3 * 1024 * 1024 * 1024).toLong()
+        // 2,35 GB → tronqué à 1 décimale = 2,3 Go (2,3 * 1024^3 direct perd
+        // 0,2 octet à cause du double→Long, ce qui bascule à 2,2 après troncature).
+        val bytes = (2.35 * 1024 * 1024 * 1024).toLong()
         assertEquals("2,3 Go", formatSize(bytes))
     }
 

@@ -73,7 +73,7 @@ fun formatAmount(cents: Long?): String {
     val abs = kotlin.math.abs(cents)
     val euros = abs / 100
     val remainder = (abs % 100).toString().padStart(2, '0')
-    return "$sign$euros,$remainder €"
+    return "$sign$euros,$remainder €"
 }
 
 /**
@@ -83,7 +83,7 @@ fun formatAmount(cents: Long?): String {
 fun parseAmountCents(raw: String): Long? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
-    val normalized = trimmed.replace(',', '.').replace(" ", "").replace(" ", "").removeSuffix("€").trim()
+    val normalized = trimmed.replace(',', '.').replace(" ", "").replace(" ", "").removeSuffix("€").trim()
     val parts = normalized.split('.')
     return when (parts.size) {
         1 -> parts[0].toLongOrNull()?.let { it * 100 }

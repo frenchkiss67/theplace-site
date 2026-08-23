@@ -24,11 +24,13 @@ class StatsTest {
             receipt(id = 5, ms(2026, 5, 10), null, ReceiptCategory.Other), // sans montant
         )
         val stats = receipts.statsByCategoryForMonth(now, utc)
-        // Tri par total décroissant
+        // Tri par total décroissant. En cas d'égalité (Restaurant 1500 vs
+        // Groceries 1000+500=1500), sortedByDescending est stable et garde
+        // l'ordre d'insertion → Groceries (id 1) apparaît avant Restaurant (id 3).
         assertEquals(
             listOf(
-                ReceiptCategory.Restaurant to 1500L,
                 ReceiptCategory.Groceries to 1500L, // 1000 + 500
+                ReceiptCategory.Restaurant to 1500L,
             ),
             stats.map { it.category to it.totalCents },
         )

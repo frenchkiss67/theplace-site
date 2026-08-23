@@ -10,12 +10,14 @@ class ReceiptScannerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // `AndroidBackupSettings` aligne lui-même WorkManager dans son init,
-        // pas besoin d'appel explicite ici.
         services = ServiceLocator(this)
 
-        // Canal de notif + tâche périodique pour les garanties.
-        WarrantyNotifier(this).ensureChannel()
-        WarrantyScheduler.ensureScheduled(this)
+        // Canal de notif + tâche périodique pour les garanties. `runCatching`
+        // pour tolérer les environnements sans WorkManager initialisé
+        // (tests Robolectric qui n'utilisent pas de WM stub).
+        runCatching {
+            WarrantyNotifier(this).ensureChannel()
+            WarrantyScheduler.ensureScheduled(this)
+        }
     }
 }

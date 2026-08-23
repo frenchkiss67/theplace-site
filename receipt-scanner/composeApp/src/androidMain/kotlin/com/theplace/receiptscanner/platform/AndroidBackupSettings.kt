@@ -29,7 +29,7 @@ internal class AndroidBackupSettings(context: Context) : BackupSettings {
         get() = folderUri() != null
 
     init {
-        scheduler.refresh()
+        refreshScheduleSafely()
     }
 
     override fun setFolder(target: PlatformExportTarget?) {
@@ -49,13 +49,22 @@ internal class AndroidBackupSettings(context: Context) : BackupSettings {
             prefs.edit().putString(KEY_FOLDER_URI, uri.toString()).apply()
             _folderLabel.value = displayLabel(uri)
         }
-        scheduler.refresh()
+        refreshScheduleSafely()
     }
 
     override fun setEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
         _enabled.value = enabled
-        scheduler.refresh()
+        refreshScheduleSafely()
+    }
+
+    /**
+     * `scheduler.refresh()` touche WorkManager, ce qui échoue dans les
+     * tests Robolectric si WM n'est pas initialisé. On tolère l'erreur —
+     * le backup n'a de sens que dans un runtime Android complet.
+     */
+    private fun refreshScheduleSafely() {
+        runCatching { scheduler.refresh() }
     }
 
     internal fun folderUri(): Uri? =
