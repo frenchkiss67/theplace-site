@@ -1,0 +1,36 @@
+{
+  "artboards": [
+    { "file": "Empty.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Liste vide" },
+    { "file": "Main.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "title": "Liste" },
+    { "file": "Selection.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "title": "Mode sélection" },
+    { "file": "Detail.dc.html", "x": 1410, "y": 0, "w": 390, "h": 844, "title": "Détail du ticket" },
+    { "file": "Stats.dc.html", "x": 0, "y": 964, "w": 390, "h": 844, "title": "Statistiques" },
+    { "file": "Onboarding.dc.html", "x": 470, "y": 964, "w": 390, "h": 844, "title": "Onboarding 1/2" },
+    { "file": "Settings.dc.html", "x": 940, "y": 964, "w": 390, "h": 844, "title": "Réglages" },
+    { "file": "Lock.dc.html", "x": 1410, "y": 964, "w": 390, "h": 844, "title": "Verrouillage" }
+  ],
+  "annotations": [
+    {
+      "id": "tokens",
+      "x": 0,
+      "y": -250,
+      "w": 420,
+      "text": "Valeurs relevées dans le code, pas approximées.\n\nThème : Teal40 #0E7C66 (primary), TealGrey40 #466A60, Sand40 #7A5C2E.\nType : Material 3 Typography() = Roboto, échelle M3 standard.\nComposants : hauteurs et rayons M3 réels (barre 64, carte r12, chip 32, FAB 56 r16, dialogue r28)."
+    },
+    {
+      "id": "containers-lavande",
+      "x": 940,
+      "y": -250,
+      "w": 400,
+      "text": "À regarder : le thème n'override que primary / secondary / tertiary.\n\nTous les rôles *Container gardent donc la palette M3 baseline, qui est violette — d'où la barre de sélection #EADDFF, les cartes sélectionnées #E8DEF8 et le FAB lavande sur les autres écrans.\n\nSur Android 12+ le dynamic color masque ça ; en dessous, c'est ce que voit l'utilisateur."
+    },
+    {
+      "id": "topbar-serree",
+      "x": 1410,
+      "y": -250,
+      "w": 400,
+      "text": "À regarder : sur 390 dp, retour + titre + 4 actions ne tiennent pas.\n\n« Détail du ticket » est tronqué (idem « 2 sélectionné(s) » en mode sélection). Piste : passer l'OCR et le partage dans le menu ⋮.\n\nAussi : dans MetadataRow le bouton catégorie (40 dp) et le champ montant (56 dp) sont alignés en haut, pas centrés."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

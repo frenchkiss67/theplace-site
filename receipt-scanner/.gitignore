@@ -12,3 +12,6 @@ local.properties
 *.aab
 /app/release
 /app/debug
+
+# Canvas de maquettes seedé (~2 Mo) — régénérable depuis mockups/*.dc.html
+mockups/tickets-de-caisse-ui.html

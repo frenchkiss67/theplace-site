@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0; width: 390px; height: 844px; overflow: hidden;
+      background: #FEF7FF; color: #1D1B20;
+      font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #0E7C66; } a:hover { color: #0a5f4e; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; position: relative; background: #FEF7FF; overflow: hidden">
+
+  <!-- TopAppBar (M3 small, 64dp) -->
+  <div style="height: 64px; display: flex; align-items: center; padding: 0 4px 0 16px; background: #FEF7FF">
+    <div style="flex-grow: 1; font-size: 22px; line-height: 28px; font-weight: 400; color: #1D1B20">Tickets de caisse</div>
+    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    </div>
+  </div>
+
+  <!-- OutlinedTextField : recherche -->
+  <div style="padding: 8px 16px">
+    <div style="height: 56px; border: 1px solid #79747E; border-radius: 4px; display: flex; align-items: center; padding: 0 12px; gap: 16px; box-sizing: border-box">
+      <div style="color: #49454F; display: flex">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </div>
+      <div style="flex-grow: 1; font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #49454F">Rechercher un ticket…</div>
+    </div>
+  </div>
+
+  <!-- FilterChips catégories (LazyRow) -->
+  <div style="display: flex; gap: 8px; padding: 4px 16px; overflow: hidden">
+    <div style="height: 32px; border-radius: 8px; background: #E8DEF8; display: flex; align-items: center; padding: 0 16px; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; color: #1D192B; white-space: nowrap">Toutes</div>
+    <div style="height: 32px; border-radius: 8px; border: 1px solid #79747E; display: flex; align-items: center; padding: 0 16px; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; color: #1D1B20; white-space: nowrap; box-sizing: border-box">Sans catégorie</div>
+    <div style="height: 32px; border-radius: 8px; border: 1px solid #79747E; display: flex; align-items: center; padding: 0 16px; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; color: #1D1B20; white-space: nowrap; box-sizing: border-box">Courses</div>
+  </div>
+
+  <!-- Ligne de résumé -->
+  <div style="padding: 4px 16px; font-size: 14px; line-height: 20px; letter-spacing: 0.25px; color: #49454F">4 ticket(s) — 173 Ko · Ce mois-ci : 147,82 €</div>
+
+  <!-- LazyColumn -->
+  <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+
+    <!-- Carte 1 -->
+    <div style="background: #E6E0E9; border-radius: 12px; padding: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 56px; height: 72px; border-radius: 6px; background: #FFFFFF; padding: 6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0">
+          <div style="height: 4px; width: 70%; background: #1D1B20; border-radius: 1px"></div>
+          <div style="height: 2px; width: 100%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 88%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 94%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 60%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 82%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 46%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="flex-grow: 1"></div>
+          <div style="height: 3px; width: 64%; background: #79747E; border-radius: 1px"></div>
+        </div>
+        <div style="flex-grow: 1; min-width: 0">
+          <div style="font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0.15px; color: #1D1B20">CARREFOUR CITY</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">14/05/2026 10:32</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">1 page(s)&nbsp;&nbsp;·&nbsp;&nbsp;38 Ko</div>
+        </div>
+      </div>
+      <div style="height: 8px"></div>
+      <div style="display: flex; justify-content: flex-end">
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #B3261E">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte 2 -->
+    <div style="background: #E6E0E9; border-radius: 12px; padding: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 56px; height: 72px; border-radius: 6px; background: #FFFFFF; padding: 6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0">
+          <div style="height: 4px; width: 84%; background: #1D1B20; border-radius: 1px"></div>
+          <div style="height: 2px; width: 96%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 72%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 90%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 55%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="flex-grow: 1"></div>
+          <div style="height: 3px; width: 58%; background: #79747E; border-radius: 1px"></div>
+        </div>
+        <div style="flex-grow: 1; min-width: 0">
+          <div style="font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0.15px; color: #1D1B20">Pharmacie du Marché</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">12/05/2026 18:07</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">1 page(s)&nbsp;&nbsp;·&nbsp;&nbsp;42 Ko</div>
+        </div>
+      </div>
+      <div style="height: 8px"></div>
+      <div style="display: flex; justify-content: flex-end">
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #B3261E">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte 3 -->
+    <div style="background: #E6E0E9; border-radius: 12px; padding: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 56px; height: 72px; border-radius: 6px; background: #FFFFFF; padding: 6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0">
+          <div style="height: 4px; width: 76%; background: #1D1B20; border-radius: 1px"></div>
+          <div style="height: 2px; width: 100%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 64%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 86%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="flex-grow: 1"></div>
+          <div style="height: 3px; width: 70%; background: #79747E; border-radius: 1px"></div>
+        </div>
+        <div style="flex-grow: 1; min-width: 0">
+          <div style="font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0.15px; color: #1D1B20">TOTALENERGIES</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">09/05/2026 07:41</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">1 page(s)&nbsp;&nbsp;·&nbsp;&nbsp;51 Ko</div>
+        </div>
+      </div>
+      <div style="height: 8px"></div>
+      <div style="display: flex; justify-content: flex-end">
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </div>
+        <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #B3261E">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte 4 (partielle, la liste défile) -->
+    <div style="background: #E6E0E9; border-radius: 12px; padding: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 56px; height: 72px; border-radius: 6px; background: #FFFFFF; padding: 6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0">
+          <div style="height: 4px; width: 66%; background: #1D1B20; border-radius: 1px"></div>
+          <div style="height: 2px; width: 92%; background: #CAC4D0; border-radius: 1px"></div>
+          <div style="height: 2px; width: 78%; background: #CAC4D0; border-radius: 1px"></div>
+        </div>
+        <div style="flex-grow: 1; min-width: 0">
+          <div style="font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0.15px; color: #1D1B20">Le Comptoir</div>
+          <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">07/05/2026 13:22</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ExtendedFAB : couleur M3 par défaut = primaryContainer -->
+  <div style="position: absolute; right: 16px; bottom: 16px; height: 56px; border-radius: 16px; background: #EADDFF; color: #21005D; display: flex; align-items: center; padding: 0 20px 0 16px; gap: 12px; box-shadow: 0 3px 5px rgba(0,0,0,0.20), 0 1px 18px rgba(0,0,0,0.12)">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <div style="font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; white-space: nowrap">Scanner un ticket</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

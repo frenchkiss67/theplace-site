@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0; width: 390px; height: 844px; overflow: hidden;
+      background: #FEF7FF; color: #1D1B20;
+      font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #0E7C66; } a:hover { color: #0a5f4e; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; position: relative; background: #FEF7FF; overflow: hidden; display: flex; flex-direction: column">
+
+  <!-- TopAppBar : le tri est désactivé tant que la liste est vide (onSurface 38 %) -->
+  <div style="height: 64px; display: flex; align-items: center; padding: 0 4px 0 16px; background: #FEF7FF; flex-shrink: 0">
+    <div style="flex-grow: 1; font-size: 22px; line-height: 28px; color: #1D1B20">Tickets de caisse</div>
+    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: rgba(29,27,32,0.38)">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    </div>
+  </div>
+
+  <!-- EmptyState centré -->
+  <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 32px">
+    <div style="display: flex; flex-direction: column; align-items: center; text-align: center">
+      <div style="color: #0E7C66; display: flex">
+        <svg viewBox="0 0 24 24" width="72" height="72" fill="currentColor"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>
+      </div>
+      <div style="height: 16px"></div>
+      <div style="font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; color: #1D1B20">Aucun ticket archivé</div>
+      <div style="height: 8px"></div>
+      <div style="font-size: 14px; line-height: 20px; letter-spacing: 0.25px; color: #49454F">Appuyez sur le bouton + pour scanner votre premier ticket.</div>
+      <div style="height: 24px"></div>
+      <div style="height: 40px; border-radius: 20px; background: #0E7C66; color: #FFFFFF; display: flex; align-items: center; padding: 0 24px 0 16px; gap: 8px">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <div style="font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; white-space: nowrap">Scanner mon premier ticket</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; right: 16px; bottom: 16px; height: 56px; border-radius: 16px; background: #EADDFF; color: #21005D; display: flex; align-items: center; padding: 0 20px 0 16px; gap: 12px; box-shadow: 0 3px 5px rgba(0,0,0,0.20), 0 1px 18px rgba(0,0,0,0.12)">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <div style="font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; white-space: nowrap">Scanner un ticket</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

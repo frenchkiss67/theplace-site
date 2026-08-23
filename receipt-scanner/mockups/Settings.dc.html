@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0; width: 390px; height: 844px; overflow: hidden;
+      background: #FEF7FF; color: #1D1B20;
+      font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #0E7C66; } a:hover { color: #0a5f4e; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; position: relative; background: #FEF7FF; overflow: hidden">
+
+  <!-- Liste en arrière-plan, atténuée par le scrim -->
+  <div style="position: absolute; inset: 0">
+    <div style="height: 64px; display: flex; align-items: center; padding: 0 4px 0 16px">
+      <div style="flex-grow: 1; font-size: 22px; line-height: 28px; color: #1D1B20">Tickets de caisse</div>
+      <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+      </div>
+      <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1D1B20">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      </div>
+    </div>
+    <div style="padding: 8px 16px">
+      <div style="height: 56px; border: 1px solid #79747E; border-radius: 4px"></div>
+    </div>
+    <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="height: 160px; background: #E6E0E9; border-radius: 12px"></div>
+      <div style="height: 160px; background: #E6E0E9; border-radius: 12px"></div>
+      <div style="height: 160px; background: #E6E0E9; border-radius: 12px"></div>
+    </div>
+  </div>
+
+  <!-- Scrim M3 : 32 % -->
+  <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.32)"></div>
+
+  <!-- AlertDialog -->
+  <div style="position: absolute; left: 39px; top: 156px; width: 312px; background: #ECE6F0; border-radius: 28px; padding: 24px; box-sizing: border-box; box-shadow: 0 8px 12px rgba(0,0,0,0.15), 0 4px 4px rgba(0,0,0,0.30)">
+
+    <div style="font-size: 24px; line-height: 32px; color: #1D1B20">Réglages</div>
+    <div style="height: 16px"></div>
+
+    <!-- Verrouillage biométrique -->
+    <div style="display: flex; align-items: center; gap: 16px">
+      <div style="flex-grow: 1; min-width: 0">
+        <div style="font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #1D1B20">Verrouillage biométrique</div>
+        <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">Demander empreinte digitale, visage ou code à l'ouverture de l'app.</div>
+      </div>
+      <div style="width: 52px; height: 32px; border-radius: 16px; background: #0E7C66; position: relative; flex-shrink: 0">
+        <div style="position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #0E7C66">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div style="height: 16px"></div>
+
+    <!-- Sauvegarde automatique -->
+    <div style="display: flex; align-items: center; gap: 16px">
+      <div style="flex-grow: 1; min-width: 0">
+        <div style="font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #1D1B20">Sauvegarde automatique</div>
+        <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">Copie quotidienne des PDFs dans un dossier que vous choisissez.</div>
+      </div>
+      <div style="width: 52px; height: 32px; border-radius: 16px; background: #0E7C66; position: relative; flex-shrink: 0">
+        <div style="position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #0E7C66">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+      </div>
+    </div>
+    <div style="height: 4px"></div>
+    <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">Dossier : Tickets</div>
+    <div style="height: 40px; display: flex; align-items: center; color: #0E7C66; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px">Changer</div>
+
+    <div style="height: 16px"></div>
+
+    <!-- Restauration -->
+    <div style="font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #1D1B20">Restaurer depuis un dossier</div>
+    <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">Réimporte les PDFs d'un dossier de backup (idempotent).</div>
+    <div style="height: 40px; display: flex; align-items: center; color: #0E7C66; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px">Choisir le dossier à restaurer</div>
+
+    <div style="height: 16px"></div>
+
+    <!-- Mode rafale -->
+    <div style="display: flex; align-items: center; gap: 16px">
+      <div style="flex-grow: 1; min-width: 0">
+        <div style="font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #1D1B20">Mode rafale</div>
+        <div style="font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #49454F">Enchaîner automatiquement plusieurs scans sans repasser par la liste.</div>
+      </div>
+      <div style="width: 52px; height: 32px; border-radius: 16px; background: #E6E0E9; border: 2px solid #79747E; box-sizing: border-box; position: relative; flex-shrink: 0">
+        <div style="position: absolute; left: 6px; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: #79747E"></div>
+      </div>
+    </div>
+
+    <div style="height: 24px"></div>
+
+    <div style="display: flex; justify-content: flex-end">
+      <div style="height: 40px; border-radius: 20px; display: flex; align-items: center; padding: 0 12px; color: #0E7C66; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px">Confirmer</div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
