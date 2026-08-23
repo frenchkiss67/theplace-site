@@ -1,5 +1,7 @@
 # Tickets de caisse — Scanner Android (Compose Multiplatform)
 
+[![CI](https://github.com/frenchkiss67/theplace-site/actions/workflows/receipt-scanner-ci.yml/badge.svg?branch=claude/receipt-scanner-app-fI6hd)](https://github.com/frenchkiss67/theplace-site/actions/workflows/receipt-scanner-ci.yml)
+
 Application pour scanner les tickets de caisse au format PDF et les
 archiver localement. Conçue comme un module **Kotlin / Compose Multiplatform**
 avec une cible Android active ; les cibles iOS sont prêtes à être activées
