@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Receipt scanner</string>
+
+    <string name="action_scan">Scan a receipt</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_open">Open PDF</string>
+    <string name="action_export">Export to a folder</string>
+
+    <string name="empty_title">No receipts yet</string>
+    <string name="empty_subtitle">Tap the + button to scan your first receipt.</string>
+    <string name="empty_cta">Scan my first receipt</string>
+
+    <string name="search_placeholder">Search a receipt…</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_no_results">No receipt matches "%1$s".</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_lock_label">Biometric lock</string>
+    <string name="settings_lock_description">Require fingerprint, face or PIN when opening the app.</string>
+    <string name="settings_lock_unavailable">No biometric or screen lock is configured on this device.</string>
+
+    <string name="lock_title">Receipts locked</string>
+    <string name="lock_subtitle">Authenticate to access your receipts.</string>
+    <string name="lock_button_unlock">Unlock</string>
+    <string name="lock_negative">Cancel</string>
+
+    <string name="settings_backup_label">Automatic backup</string>
+    <string name="settings_backup_description">Daily copy of PDFs to a folder you choose.</string>
+    <string name="settings_backup_pick">Choose folder</string>
+    <string name="settings_backup_change">Change</string>
+    <string name="settings_backup_folder_label">Folder: %1$s</string>
+    <string name="settings_backup_folder_missing">No folder configured</string>
+
+    <string name="settings_restore_label">Restore from a folder</string>
+    <string name="settings_restore_description">Re-imports PDFs from a backup folder (idempotent).</string>
+    <string name="settings_restore_pick">Pick folder to restore</string>
+
+    <string name="settings_continuous_label">Continuous scan</string>
+    <string name="settings_continuous_description">Automatically chain multiple scans without going back to the list.</string>
+    <string name="restore_success">%1$d receipt(s) restored, %2$d skipped</string>
+    <string name="restore_empty">No new receipt to restore</string>
+    <string name="restore_failed">Restore failed: %1$s</string>
+
+    <string name="onboarding_title_1">Scan your receipts</string>
+    <string name="onboarding_body_1">The scanner detects edges, straightens the receipt and archives it as a PDF in a private folder.</string>
+    <string name="onboarding_title_2">Batch actions</string>
+    <string name="onboarding_body_2">Long-press a receipt to enter selection mode — share, export or delete multiple at once.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_done">Let's go</string>
+
+    <string name="stats_title">Statistics</string>
+    <string name="stats_empty">No spending recorded yet.</string>
+    <string name="stats_month_section">This month, by category</string>
+    <string name="stats_year_section">Last 12 months</string>
+    <string name="stats_menu">Statistics</string>
+    <string name="export_csv_menu">Export to CSV</string>
+    <string name="export_csv_done">CSV export complete</string>
+    <string name="export_csv_failed">CSV export failed</string>
+    <string name="export_csv_default_name">receipts.csv</string>
+
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_clear">Exit selection</string>
+    <string name="selection_all">Select all</string>
+    <string name="selection_share_label">Receipts</string>
+
+    <string name="dialog_delete_many_title">Delete %1$d receipt(s)?</string>
+    <string name="dialog_delete_many_message">The PDFs will be permanently removed.</string>
+
+    <string name="receipts_deleted_many">%1$d receipt(s) deleted</string>
+    <string name="export_done">%1$d receipt(s) exported</string>
+    <string name="export_partial">%1$d receipt(s) exported, error: %2$s</string>
+    <string name="export_failed">Export failed: %1$s</string>
+
+    <string name="category_label">Category</string>
+    <string name="category_none">Uncategorised</string>
+    <string name="category_all">All</string>
+    <string name="category_groceries">Groceries</string>
+    <string name="category_restaurant">Restaurant</string>
+    <string name="category_fuel">Fuel</string>
+    <string name="category_health">Health</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_other">Other</string>
+
+    <string name="amount_label">Amount</string>
+    <string name="amount_hint">12.30</string>
+    <string name="amount_unit">€</string>
+    <string name="amount_invalid">Invalid format</string>
+
+    <string name="warranty_section">Warranty</string>
+    <string name="warranty_purchased_at">Purchase date</string>
+    <string name="warranty_set_date">Set</string>
+    <string name="warranty_clear">Clear</string>
+    <string name="warranty_duration">Duration</string>
+    <string name="warranty_none">None</string>
+    <string name="warranty_months_short">%1$d months</string>
+    <string name="warranty_year">1 year</string>
+    <string name="warranty_years">%1$d years</string>
+    <string name="warranty_expires_in">Expires in %1$d day(s)</string>
+    <string name="warranty_expired">Warranty expired</string>
+    <string name="warranty_active_until">Covered until %1$s</string>
+    <string name="warranty_pick_date_first">Please pick the purchase date first</string>
+
+    <string name="warranty_notif_channel">Warranties expiring</string>
+    <string name="warranty_notif_channel_desc">J-30 reminders before your receipts' warranty ends.</string>
+    <string name="warranty_notif_title">Warranty expiring soon</string>
+    <string name="warranty_notif_text">%1$s — %2$d day(s) left.</string>
+
+    <string name="month_total">This month: %1$s</string>
+    <string name="receipts_count_with_total">%1$d receipt(s) — %2$s · %3$s</string>
+
+    <string name="sort_label">Sort</string>
+    <string name="sort_date_desc">Newest first</string>
+    <string name="sort_date_asc">Oldest first</string>
+    <string name="sort_name_asc">Name (A–Z)</string>
+    <string name="sort_size_desc">Largest first</string>
+
+    <string name="scan_error">Cannot start the scanner: %1$s</string>
+    <string name="scan_cancelled">Scan cancelled</string>
+    <string name="scan_save_failed">Cannot save scan: %1$s</string>
+    <string name="receipt_saved">"%1$s" archived</string>
+    <string name="receipt_deleted">"%1$s" deleted</string>
+    <string name="action_undo">Undo</string>
+
+    <string name="receipts_count">%1$d receipt(s) — %2$s total</string>
+    <string name="pages_label">%1$d page(s)</string>
+
+    <string name="detail_title">Receipt details</string>
+    <string name="detail_loading">Loading preview…</string>
+    <string name="detail_preview_unavailable">Preview unavailable</string>
+    <string name="detail_back">Back</string>
+    <string name="detail_open_external">Open in external viewer</string>
+    <string name="detail_rerun_ocr">Re-run OCR</string>
+    <string name="detail_rerun_ocr_started">OCR re-running in the background</string>
+    <string name="page_index">Page %1$d / %2$d</string>
+
+    <string name="dialog_delete_title">Delete this receipt?</string>
+    <string name="dialog_delete_message">The PDF will be permanently removed.</string>
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+
+    <string name="dialog_rename_title">Rename receipt</string>
+    <string name="dialog_rename_hint">Receipt name</string>
+</resources>

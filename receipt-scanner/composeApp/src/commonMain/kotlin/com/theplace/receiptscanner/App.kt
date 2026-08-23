@@ -1,0 +1,360 @@
+package com.theplace.receiptscanner
+
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.theplace.receiptscanner.data.RestoreOutcome
+import com.theplace.receiptscanner.data.SaveScanOutcome
+import com.theplace.receiptscanner.platform.AppLockSettings
+import com.theplace.receiptscanner.platform.BackupSettings
+import com.theplace.receiptscanner.platform.BiometricGate
+import com.theplace.receiptscanner.platform.DocumentScannerLauncher
+import com.theplace.receiptscanner.platform.DocumentWriter
+import com.theplace.receiptscanner.platform.ExportOutcome
+import com.theplace.receiptscanner.platform.OnboardingSettings
+import com.theplace.receiptscanner.platform.ScanPreferences
+import com.theplace.receiptscanner.platform.ScanOutcome
+import com.theplace.receiptscanner.platform.rememberCreateDocumentLauncher
+import com.theplace.receiptscanner.platform.rememberDocumentScannerLauncher
+import com.theplace.receiptscanner.platform.rememberExportFolderLauncher
+import com.theplace.receiptscanner.platform.rememberNotificationPermissionRequester
+import com.theplace.receiptscanner.resources.Res
+import com.theplace.receiptscanner.resources.action_undo
+import com.theplace.receiptscanner.resources.detail_rerun_ocr_started
+import com.theplace.receiptscanner.resources.export_csv_default_name
+import com.theplace.receiptscanner.resources.export_csv_done
+import com.theplace.receiptscanner.resources.export_csv_failed
+import com.theplace.receiptscanner.resources.export_done
+import com.theplace.receiptscanner.resources.export_failed
+import com.theplace.receiptscanner.resources.export_partial
+import com.theplace.receiptscanner.resources.receipt_deleted
+import com.theplace.receiptscanner.resources.receipt_saved
+import com.theplace.receiptscanner.resources.receipts_deleted_many
+import com.theplace.receiptscanner.resources.restore_empty
+import com.theplace.receiptscanner.resources.restore_failed
+import com.theplace.receiptscanner.resources.restore_success
+import com.theplace.receiptscanner.resources.scan_cancelled
+import com.theplace.receiptscanner.resources.scan_error
+import com.theplace.receiptscanner.resources.scan_save_failed
+import com.theplace.receiptscanner.resources.selection_share_label
+import com.theplace.receiptscanner.ui.OnboardingScreen
+import com.theplace.receiptscanner.ui.ReceiptDetailScreen
+import com.theplace.receiptscanner.ui.ReceiptListScreen
+import com.theplace.receiptscanner.ui.StatsScreen
+import com.theplace.receiptscanner.ui.theme.ReceiptScannerTheme
+import com.theplace.receiptscanner.util.buildReceiptsCsv
+import com.theplace.receiptscanner.viewmodel.ReceiptViewModel
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
+
+private const val ROUTE_LIST = "list"
+private const val ROUTE_DETAIL = "detail/{id}"
+private const val ROUTE_STATS = "stats"
+private const val ARG_ID = "id"
+
+// Durées de transition Material Expressive : ~250 ms slide, ~150 ms fade.
+private const val NAV_SLIDE_MS = 250
+private const val NAV_FADE_MS = 150
+
+private fun AnimatedContentTransitionScope<*>.navSlideIn(direction: SlideDirection): EnterTransition =
+    slideIntoContainer(direction, tween(NAV_SLIDE_MS)) + fadeIn(tween(NAV_FADE_MS))
+
+private fun AnimatedContentTransitionScope<*>.navSlideOut(direction: SlideDirection): ExitTransition =
+    slideOutOfContainer(direction, tween(NAV_SLIDE_MS)) + fadeOut(tween(NAV_FADE_MS))
+
+@Composable
+fun App(
+    viewModel: ReceiptViewModel,
+    appLock: AppLockSettings,
+    backupSettings: BackupSettings,
+    onboarding: OnboardingSettings,
+    documentWriter: DocumentWriter,
+    scanPreferences: ScanPreferences,
+    dynamicColorScheme: ColorScheme? = null,
+) {
+    ReceiptScannerTheme(dynamicColors = dynamicColorScheme) {
+        val onboardingDone by onboarding.completed.collectAsState()
+        if (!onboardingDone) {
+            OnboardingScreen(onComplete = onboarding::markCompleted)
+            return@ReceiptScannerTheme
+        }
+        BiometricGate(settings = appLock) {
+            AppContent(
+                viewModel = viewModel,
+                appLock = appLock,
+                backupSettings = backupSettings,
+                documentWriter = documentWriter,
+                scanPreferences = scanPreferences,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppContent(
+    viewModel: ReceiptViewModel,
+    appLock: AppLockSettings,
+    backupSettings: BackupSettings,
+    documentWriter: DocumentWriter,
+    scanPreferences: ScanPreferences,
+) {
+    val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // visibleReceipts masque les tickets en cours de suppression différée.
+    val receipts by viewModel.visibleReceipts.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val shareLabel = stringResource(Res.string.selection_share_label)
+    val lockEnabled by appLock.enabled.collectAsState()
+    val backupEnabled by backupSettings.enabled.collectAsState()
+    val backupFolderLabel by backupSettings.folderLabel.collectAsState()
+    val continuousScan by scanPreferences.continuousScan.collectAsState()
+
+        // Holder pour permettre à la lambda du scanner de se relancer en
+        // mode rafale — sinon forward-reference Kotlin sur `scanner` val.
+        val scannerHolder = remember { mutableStateOf<DocumentScannerLauncher?>(null) }
+        val scanner = rememberDocumentScannerLauncher { outcome ->
+            when (outcome) {
+                is ScanOutcome.Success -> viewModel.saveScan(outcome.result) { saveResult ->
+                    when (saveResult) {
+                        is SaveScanOutcome.Success -> {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    getString(Res.string.receipt_saved, saveResult.receipt.name)
+                                )
+                            }
+                            // Mode rafale : enchaîne immédiatement sur un nouveau scan.
+                            if (continuousScan) scannerHolder.value?.launch()
+                        }
+                        is SaveScanOutcome.Failure -> scope.launch {
+                            snackbarHostState.showSnackbar(
+                                getString(Res.string.scan_save_failed, saveResult.message)
+                            )
+                        }
+                    }
+                }
+                is ScanOutcome.Cancelled -> scope.launch {
+                    snackbarHostState.showSnackbar(getString(Res.string.scan_cancelled))
+                }
+                is ScanOutcome.Failure -> scope.launch {
+                    snackbarHostState.showSnackbar(
+                        getString(Res.string.scan_error, outcome.message)
+                    )
+                }
+            }
+        }
+        scannerHolder.value = scanner
+
+        // SAF folder picker pour la configuration du dossier de backup auto.
+        val backupFolderLauncher = rememberExportFolderLauncher { target ->
+            if (target != null) backupSettings.setFolder(target)
+        }
+
+        // SAF folder picker pour restaurer les PDFs depuis un dossier de backup.
+        val restoreLauncher = rememberExportFolderLauncher { target ->
+            if (target == null) return@rememberExportFolderLauncher
+            viewModel.restoreFromFolder(target) { result ->
+                scope.launch {
+                    val message = when (result) {
+                        is RestoreOutcome.Success -> if (result.imported == 0 && result.skipped == 0) {
+                            getString(Res.string.restore_empty)
+                        } else {
+                            getString(Res.string.restore_success, result.imported, result.skipped)
+                        }
+                        is RestoreOutcome.Failure -> getString(Res.string.restore_failed, result.message)
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
+        }
+
+        // Permission notifications (Android 13+) demandée à la 1re garantie configurée.
+        val notifPermission = rememberNotificationPermissionRequester()
+
+        // Export CSV : SAF CreateDocument + écriture du contenu via DocumentWriter.
+        val csvDefaultName = stringResource(Res.string.export_csv_default_name)
+        val csvLauncher = rememberCreateDocumentLauncher(
+            mimeType = "text/csv",
+            defaultName = csvDefaultName,
+        ) { target ->
+            if (target == null) return@rememberCreateDocumentLauncher
+            scope.launch {
+                val csv = buildReceiptsCsv(receipts)
+                val ok = documentWriter.writeText(target, csv)
+                snackbarHostState.showSnackbar(
+                    getString(
+                        if (ok) Res.string.export_csv_done else Res.string.export_csv_failed,
+                    ),
+                )
+            }
+        }
+
+        // SAF folder picker pour l'export multi-tickets.
+        val exportLauncher = rememberExportFolderLauncher { target ->
+            if (target == null) return@rememberExportFolderLauncher
+            viewModel.exportSelected(target) { result ->
+                scope.launch {
+                    val message = when (result) {
+                        is ExportOutcome.Success -> getString(Res.string.export_done, result.exportedCount)
+                        is ExportOutcome.Failure -> if (result.partialCount > 0) {
+                            getString(Res.string.export_partial, result.partialCount, result.message)
+                        } else {
+                            getString(Res.string.export_failed, result.message)
+                        }
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
+        }
+
+        NavHost(
+            navController = navController,
+            startDestination = ROUTE_LIST,
+        ) {
+            // Liste : reste en place quand on pousse le détail (fade simple),
+            // glisse vers la droite quand on revient depuis le détail.
+            composable(
+                route = ROUTE_LIST,
+                enterTransition = { fadeIn(tween(NAV_FADE_MS)) },
+                exitTransition = { fadeOut(tween(NAV_FADE_MS)) },
+                popEnterTransition = { navSlideIn(SlideDirection.End) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
+            ) {
+                ReceiptListScreen(
+                    receipts = receipts,
+                    selection = selection,
+                    lockEnabled = lockEnabled,
+                    lockAvailable = appLock.isBiometricAvailable,
+                    onToggleLock = appLock::setEnabled,
+                    backupEnabled = backupEnabled,
+                    backupFolderLabel = backupFolderLabel,
+                    onToggleBackup = backupSettings::setEnabled,
+                    onPickBackupFolder = { backupFolderLauncher.launch() },
+                    onPickRestoreFolder = { restoreLauncher.launch() },
+                    continuousScan = continuousScan,
+                    onToggleContinuousScan = scanPreferences::setContinuousScan,
+                    onOpenStats = { navController.navigate(ROUTE_STATS) },
+                    onExportCsv = { csvLauncher.launch() },
+                    snackbarHostState = snackbarHostState,
+                    onScanClicked = { scanner.launch() },
+                    onItemClick = { receipt ->
+                        navController.navigate("detail/${receipt.id}")
+                    },
+                    onToggleSelection = { viewModel.toggleSelection(it.id) },
+                    onClearSelection = viewModel::clearSelection,
+                    onSelectAll = { filtered -> viewModel.selectAll(filtered.map { it.id }) },
+                    onShareSelected = { viewModel.shareSelected(shareLabel) },
+                    onExportSelected = { exportLauncher.launch() },
+                    onDeleteSelected = {
+                        viewModel.deleteSelected { count ->
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    getString(Res.string.receipts_deleted_many, count)
+                                )
+                            }
+                        }
+                    },
+                    onRename = viewModel::rename,
+                    onDelete = { receipt ->
+                        viewModel.delete(receipt)
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = getString(Res.string.receipt_deleted, receipt.name),
+                                actionLabel = getString(Res.string.action_undo),
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.undoDelete(receipt.id)
+                            }
+                        }
+                    },
+                    onOpen = viewModel::openPdf,
+                    onShare = viewModel::sharePdf,
+                )
+            }
+            // Détail : entre par la droite, sort vers la droite au retour.
+            composable(
+                route = ROUTE_DETAIL,
+                arguments = listOf(navArgument(ARG_ID) { type = NavType.LongType }),
+                enterTransition = { navSlideIn(SlideDirection.Start) },
+                exitTransition = { navSlideOut(SlideDirection.Start) },
+                popEnterTransition = { navSlideIn(SlideDirection.Start) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
+            ) { entry ->
+                val id = entry.arguments?.getLong(ARG_ID) ?: -1L
+                val receipt = receipts.firstOrNull { it.id == id }
+                if (receipt == null) {
+                    navController.popBackStack(ROUTE_LIST, inclusive = false)
+                } else {
+                    ReceiptDetailScreen(
+                        receipt = receipt,
+                        snackbarHostState = snackbarHostState,
+                        onBack = { navController.popBackStack() },
+                        onRename = viewModel::rename,
+                        onDelete = { r ->
+                            viewModel.delete(r)
+                            navController.popBackStack()
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = getString(Res.string.receipt_deleted, r.name),
+                                    actionLabel = getString(Res.string.action_undo),
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.undoDelete(r.id)
+                                }
+                            }
+                        },
+                        onOpen = viewModel::openPdf,
+                        onShare = viewModel::sharePdf,
+                        onCategoryChange = viewModel::setCategory,
+                        onAmountChange = viewModel::setAmount,
+                        onPurchasedAtChange = viewModel::setPurchasedAt,
+                        onWarrantyMonthsChange = { r, months ->
+                            viewModel.setWarrantyMonths(r, months)
+                            // Première garantie activée → demande la permission notif.
+                            if (months != null) notifPermission.requestIfNeeded()
+                        },
+                        onRerunOcr = { r ->
+                            viewModel.rerunOcr(r)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    getString(Res.string.detail_rerun_ocr_started)
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+            // Statistiques : graphiques par catégorie (mois courant) + 12 mois.
+            composable(
+                route = ROUTE_STATS,
+                enterTransition = { navSlideIn(SlideDirection.Start) },
+                exitTransition = { navSlideOut(SlideDirection.Start) },
+                popExitTransition = { navSlideOut(SlideDirection.End) },
+            ) {
+                StatsScreen(
+                    receipts = receipts,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+        }
+    }

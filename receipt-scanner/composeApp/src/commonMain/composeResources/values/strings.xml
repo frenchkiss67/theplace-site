@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tickets de caisse</string>
+
+    <string name="action_scan">Scanner un ticket</string>
+    <string name="action_share">Partager</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_rename">Renommer</string>
+    <string name="action_open">Ouvrir le PDF</string>
+
+    <string name="empty_title">Aucun ticket archivé</string>
+    <string name="empty_subtitle">Appuyez sur le bouton + pour scanner votre premier ticket.</string>
+    <string name="empty_cta">Scanner mon premier ticket</string>
+
+    <string name="search_placeholder">Rechercher un ticket…</string>
+    <string name="search_clear">Effacer</string>
+    <string name="search_no_results">Aucun ticket ne correspond à « %1$s ».</string>
+
+    <string name="selection_count">%1$d sélectionné(s)</string>
+    <string name="selection_clear">Quitter la sélection</string>
+    <string name="selection_all">Tout sélectionner</string>
+    <string name="selection_share_label">Tickets de caisse</string>
+
+    <string name="action_export">Exporter dans un dossier</string>
+
+    <string name="dialog_delete_many_title">Supprimer %1$d ticket(s) ?</string>
+    <string name="dialog_delete_many_message">Les PDFs seront définitivement supprimés.</string>
+
+    <string name="receipts_deleted_many">%1$d ticket(s) supprimé(s)</string>
+    <string name="export_done">%1$d ticket(s) exporté(s)</string>
+    <string name="export_partial">%1$d ticket(s) exporté(s), erreur : %2$s</string>
+    <string name="export_failed">Export impossible : %1$s</string>
+
+    <string name="settings_title">Réglages</string>
+    <string name="settings_lock_label">Verrouillage biométrique</string>
+    <string name="settings_lock_description">Demander empreinte digitale, visage ou code à l'ouverture de l'app.</string>
+    <string name="settings_lock_unavailable">Aucune biométrie ou code d'écran n'est configuré sur cet appareil.</string>
+
+    <string name="lock_title">Tickets verrouillés</string>
+    <string name="lock_subtitle">Authentifiez-vous pour accéder à vos tickets.</string>
+    <string name="lock_button_unlock">Déverrouiller</string>
+    <string name="lock_negative">Annuler</string>
+
+    <string name="settings_backup_label">Sauvegarde automatique</string>
+    <string name="settings_backup_description">Copie quotidienne des PDFs dans un dossier que vous choisissez.</string>
+    <string name="settings_backup_pick">Choisir le dossier</string>
+    <string name="settings_backup_change">Changer</string>
+    <string name="settings_backup_folder_label">Dossier : %1$s</string>
+    <string name="settings_backup_folder_missing">Aucun dossier configuré</string>
+
+    <string name="settings_restore_label">Restaurer depuis un dossier</string>
+    <string name="settings_restore_description">Réimporte les PDFs d'un dossier de backup (idempotent).</string>
+    <string name="settings_restore_pick">Choisir le dossier à restaurer</string>
+
+    <string name="settings_continuous_label">Mode rafale</string>
+    <string name="settings_continuous_description">Enchaîner automatiquement plusieurs scans sans repasser par la liste.</string>
+    <string name="restore_success">%1$d ticket(s) restauré(s), %2$d ignoré(s)</string>
+    <string name="restore_empty">Aucun nouveau ticket à restaurer</string>
+    <string name="restore_failed">Restauration impossible : %1$s</string>
+
+    <string name="onboarding_title_1">Scannez vos tickets</string>
+    <string name="onboarding_body_1">Le scanner détecte les bords, redresse le ticket et l'archive en PDF dans un dossier privé.</string>
+    <string name="onboarding_title_2">Organisez en lot</string>
+    <string name="onboarding_body_2">Appuyez longuement sur un ticket pour en sélectionner plusieurs : partage, export ou suppression groupés.</string>
+    <string name="onboarding_skip">Passer</string>
+    <string name="onboarding_next">Suivant</string>
+    <string name="onboarding_done">C'est parti</string>
+
+    <string name="stats_title">Statistiques</string>
+    <string name="stats_empty">Aucune dépense renseignée pour l'instant.</string>
+    <string name="stats_month_section">Ce mois-ci, par catégorie</string>
+    <string name="stats_year_section">12 derniers mois</string>
+    <string name="stats_menu">Statistiques</string>
+    <string name="export_csv_menu">Exporter en CSV</string>
+    <string name="export_csv_done">Export CSV terminé</string>
+    <string name="export_csv_failed">Export CSV impossible</string>
+    <string name="export_csv_default_name">tickets.csv</string>
+
+    <string name="category_label">Catégorie</string>
+    <string name="category_none">Sans catégorie</string>
+    <string name="category_all">Toutes</string>
+    <string name="category_groceries">Courses</string>
+    <string name="category_restaurant">Restaurant</string>
+    <string name="category_fuel">Carburant</string>
+    <string name="category_health">Santé</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_other">Autre</string>
+
+    <string name="amount_label">Montant</string>
+    <string name="amount_hint">12,30</string>
+    <string name="amount_unit">€</string>
+    <string name="amount_invalid">Format invalide</string>
+
+    <string name="warranty_section">Garantie</string>
+    <string name="warranty_purchased_at">Date d'achat</string>
+    <string name="warranty_set_date">Configurer</string>
+    <string name="warranty_clear">Effacer</string>
+    <string name="warranty_duration">Durée</string>
+    <string name="warranty_none">Aucune</string>
+    <string name="warranty_months_short">%1$d mois</string>
+    <string name="warranty_year">1 an</string>
+    <string name="warranty_years">%1$d ans</string>
+    <string name="warranty_expires_in">Expire dans %1$d jour(s)</string>
+    <string name="warranty_expired">Garantie expirée</string>
+    <string name="warranty_active_until">Couverte jusqu'au %1$s</string>
+    <string name="warranty_pick_date_first">Date d'achat à renseigner d'abord</string>
+
+    <string name="warranty_notif_channel">Garanties qui expirent</string>
+    <string name="warranty_notif_channel_desc">Rappels J-30 avant la fin de garantie de vos tickets.</string>
+    <string name="warranty_notif_title">Garantie bientôt expirée</string>
+    <string name="warranty_notif_text">%1$s — il reste %2$d jour(s).</string>
+
+    <string name="month_total">Ce mois-ci : %1$s</string>
+    <string name="receipts_count_with_total">%1$d ticket(s) — %2$s · %3$s</string>
+
+    <string name="sort_label">Trier</string>
+    <string name="sort_date_desc">Plus récents d'abord</string>
+    <string name="sort_date_asc">Plus anciens d'abord</string>
+    <string name="sort_name_asc">Nom (A-Z)</string>
+    <string name="sort_size_desc">Plus volumineux d'abord</string>
+
+    <string name="scan_error">Impossible de démarrer le scanner : %1$s</string>
+    <string name="scan_cancelled">Scan annulé</string>
+    <string name="scan_save_failed">Archivage impossible : %1$s</string>
+    <string name="receipt_saved">« %1$s » archivé</string>
+    <string name="receipt_deleted">« %1$s » supprimé</string>
+    <string name="action_undo">Annuler</string>
+
+    <string name="receipts_count">%1$d ticket(s) — %2$s au total</string>
+    <string name="pages_label">%1$d page(s)</string>
+
+    <string name="detail_title">Détail du ticket</string>
+    <string name="detail_loading">Chargement de l'aperçu…</string>
+    <string name="detail_preview_unavailable">Aperçu indisponible</string>
+    <string name="detail_back">Retour</string>
+    <string name="detail_open_external">Ouvrir dans un viewer externe</string>
+    <string name="detail_rerun_ocr">Relancer l'OCR</string>
+    <string name="detail_rerun_ocr_started">OCR relancé en arrière-plan</string>
+    <string name="page_index">Page %1$d / %2$d</string>
+
+    <string name="dialog_delete_title">Supprimer ce ticket ?</string>
+    <string name="dialog_delete_message">Le PDF sera définitivement supprimé.</string>
+    <string name="dialog_confirm">Confirmer</string>
+    <string name="dialog_cancel">Annuler</string>
+
+    <string name="dialog_rename_title">Renommer le ticket</string>
+    <string name="dialog_rename_hint">Nom du ticket</string>
+</resources>
