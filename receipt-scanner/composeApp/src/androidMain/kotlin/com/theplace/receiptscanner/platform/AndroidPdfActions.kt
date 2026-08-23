@@ -82,7 +82,7 @@ internal class AndroidPdfActions(
                 continue
             }
             val docName = ensurePdfSuffix(sanitizeFileName(receipt.name).ifBlank { receipt.fileName })
-            val destUri: Uri? = try {
+            val destUri: Uri = try {
                 DocumentsContract.createDocument(
                     resolver,
                     parent,
