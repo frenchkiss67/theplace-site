@@ -142,7 +142,7 @@ dependencies {
 }
 
 // Compose Resources : exposer Res sous notre package racine.
-extensions.configure<ResourcesExtension> {
+compose.resources {
     packageOfResClass = "com.theplace.receiptscanner.resources"
     generateResClass = ResourcesExtension.ResourceClassGeneration.Always
 }
