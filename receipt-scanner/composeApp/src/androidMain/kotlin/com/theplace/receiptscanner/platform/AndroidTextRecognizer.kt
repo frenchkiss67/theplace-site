@@ -15,7 +15,11 @@ import kotlinx.coroutines.withContext
 internal class AndroidTextRecognizer(private val context: Context) : TextRecognizer {
 
     // Modèle Latin embarqué — utilisable hors-ligne, pas de téléchargement.
-    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    // `by lazy` : évite d'initialiser Play Services au démarrage de l'app
+    // (crash Robolectric si non installé et création différée jusqu'au 1er OCR).
+    private val recognizer by lazy {
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    }
 
     override suspend fun extractText(receipt: Receipt): String? = withContext(Dispatchers.IO) {
         val pdf = File(File(context.filesDir, "receipts"), receipt.fileName)
