@@ -1,0 +1,6 @@
+# Build artifacts
+*.prg
+*.sym
+*.vs
+labels.txt
+report.txt
